@@ -1309,8 +1309,7 @@ a {
   font-weight: 700;
 }
 .toast,
-.sync-note,
-.update-banner {
+.sync-note {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
@@ -1339,26 +1338,6 @@ a {
   display: flex;
   align-items: center;
   gap: 5px;
-}
-.update-banner {
-  bottom: 84px;
-  width: min(calc(100% - 24px), 500px);
-  background: #173e35;
-  color: #fff;
-  padding: 11px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-}
-.update-banner button {
-  background: #ed7158;
-  color: #fff;
-  border: 0;
-  border-radius: 8px;
-  padding: 9px;
-  font-weight: 700;
 }
 @media (min-width: 650px) {
   .hero {
@@ -1400,11 +1379,6 @@ a {
   font-size: 11px;
   text-decoration: underline;
 }
-.update-banner button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
 /* Lagani pomaci i jasni dodiri, bez promjene rasporeda. */
 @keyframes rise-in {
   from {
@@ -1594,8 +1568,7 @@ a {
   .icon-button,
   .locate-button,
   .upload-box,
-  .avatar,
-  .update-banner button {
+  .avatar {
     transition:
       transform 180ms ease,
       background-color 180ms ease,
@@ -1610,8 +1583,7 @@ a {
   .kind-toggle button:active,
   .calendar-head button:active,
   .icon-button:active,
-  .locate-button:active,
-  .update-banner button:active {
+  .locate-button:active {
     transform: scale(0.96);
   }
   .primary:active {
@@ -1771,7 +1743,6 @@ a {
   }
   .toast,
   .sync-note,
-  .update-banner,
   .form-error {
     animation: rise-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }

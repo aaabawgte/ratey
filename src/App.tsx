@@ -289,10 +289,19 @@ function App() {
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
   const [notice, setNotice] = useState("");
   const [offline, setOffline] = useState(!navigator.onLine);
-  const [needsUpdate, setNeedsUpdate] = useState(false);
   const updateSW = useRef<((reloadPage?: boolean) => Promise<void>) | null>(
     null,
   );
+  const screenRef = useRef(screen);
+  const pendingUpdate = useRef(false);
+  const applyPendingUpdate = useCallback(() => {
+    if (screenRef.current || !pendingUpdate.current || !updateSW.current)
+      return;
+    pendingUpdate.current = false;
+    void updateSW.current(true).catch(() => {
+      pendingUpdate.current = true;
+    });
+  }, []);
   const [month, setMonth] = useState(() => new Date());
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "restaurant" | "cafe">("all");
@@ -347,16 +356,44 @@ function App() {
     };
   }, [refresh]);
   useEffect(() => {
+    screenRef.current = screen;
+    applyPendingUpdate();
+  }, [screen, applyPendingUpdate]);
+  useEffect(() => {
     updateSW.current = registerSW({
-      onNeedRefresh: () => setNeedsUpdate(true),
+      immediate: true,
+      onNeedRefresh: () => {
+        pendingUpdate.current = true;
+        applyPendingUpdate();
+      },
+      onRegisteredSW: (_url, registration) => {
+        if (navigator.onLine) void registration?.update().catch(() => {});
+      },
       onOfflineReady: () => setNotice("Aplikacija je spremna za rad bez veze"),
     });
-    const onFocus = () => {
-      void navigator.serviceWorker?.getRegistration().then((r) => r?.update());
+    applyPendingUpdate();
+    const checkForUpdate = () => {
+      if (!navigator.onLine || document.visibilityState === "hidden") return;
+      applyPendingUpdate();
+      void navigator.serviceWorker
+        ?.getRegistration()
+        .then((registration) => registration?.update())
+        .catch(() => {});
     };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, []);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkForUpdate();
+    };
+    window.addEventListener("pageshow", checkForUpdate);
+    window.addEventListener("focus", checkForUpdate);
+    window.addEventListener("online", checkForUpdate);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", checkForUpdate);
+      window.removeEventListener("focus", checkForUpdate);
+      window.removeEventListener("online", checkForUpdate);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [applyPendingUpdate]);
   const ratingsFor = (id: string) =>
     data.ratings.filter((r) => r.place_id === id);
   const visitsFor = (id: string) =>
@@ -758,17 +795,6 @@ function App() {
         <div className="sync-note">
           <RefreshCw size={15} /> {getQueue().length} unos(a) čeka
           sinkronizaciju
-        </div>
-      )}
-      {needsUpdate && (
-        <div className="update-banner">
-          <span>Nova verzija je spremna.</span>
-          <button
-            disabled={screen !== null}
-            onClick={() => void updateSW.current?.(true)}
-          >
-            {screen ? "Završi unos prvo" : "Osvježi"}
-          </button>
         </div>
       )}
     </div>
