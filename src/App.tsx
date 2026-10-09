@@ -54,6 +54,38 @@ type Suggestion = {
 const center: [number, number] = [45.815, 15.982];
 const kindName = (kind: Place["kind"]) =>
   kind === "restaurant" ? "Restoran" : "Kafić";
+async function preparePhoto(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    let scale = Math.min(
+      1,
+      1600 / Math.max(image.naturalWidth, image.naturalHeight),
+    );
+    for (let attempt = 0; attempt < 6; attempt++) {
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Fotografiju nije moguće obraditi");
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.78 - attempt * 0.06),
+      );
+      if (blob && blob.size <= 1_400_000) return blob;
+      scale *= 0.8;
+    }
+    throw new Error("Fotografija je prevelika i nakon smanjivanja");
+  } catch {
+    throw new Error(
+      `Ne mogu otvoriti fotografiju ${file.name}. Odaberi JPEG ili PNG.`,
+    );
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 function MapCanvas({
   places,
   token,
@@ -1181,13 +1213,14 @@ function VisitForm({
       if (visit)
         await api(`/visits/${id}`, "PATCH", { visited_at: date, note }, token);
       for (const file of files) {
+        const photo = await preparePhoto(file);
         const response = await fetch(`${apiBase}/visits/${id}/photos`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": file.type,
+            "Content-Type": photo.type,
           },
-          body: file,
+          body: photo,
         });
         if (!response.ok)
           throw new Error(
@@ -1231,9 +1264,7 @@ function VisitForm({
         <label className="upload-box">
           <Camera size={22} />
           <strong>Dodaj fotke</strong>
-          <small>
-            Neobavezno · JPEG, PNG, WebP ili HEIC · do 8 MB po slici
-          </small>
+          <small>Neobavezno · fotke se automatski smanjuju</small>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic"

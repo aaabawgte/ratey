@@ -302,15 +302,7 @@ const route = async (request: Request, env: Env): Promise<Response> => {
       : err("Mjesto ne postoji", 404);
   }
   if (placeId && method === "DELETE") {
-    const photos = await env.DB.prepare(
-      "SELECT object_key FROM photos JOIN visits ON visits.id = photos.visit_id WHERE visits.place_id = ?",
-    )
-      .bind(placeId)
-      .all<{ object_key: string }>();
     await env.DB.prepare("DELETE FROM places WHERE id = ?").bind(placeId).run();
-    await Promise.all(
-      photos.results.map((p) => env.PHOTOS.delete(p.object_key)),
-    );
     return json({ ok: true });
   }
   if (path === "/visits" && method === "POST") {
@@ -350,15 +342,7 @@ const route = async (request: Request, env: Env): Promise<Response> => {
       : err("Posjet ne postoji", 404);
   }
   if (visitId && method === "DELETE") {
-    const photos = await env.DB.prepare(
-      "SELECT object_key FROM photos WHERE visit_id = ?",
-    )
-      .bind(visitId)
-      .all<{ object_key: string }>();
     await env.DB.prepare("DELETE FROM visits WHERE id = ?").bind(visitId).run();
-    await Promise.all(
-      photos.results.map((p) => env.PHOTOS.delete(p.object_key)),
-    );
     return json({ ok: true });
   }
   const ratingPlace = path.match(/^\/ratings\/([^/]+)$/)?.[1];
@@ -395,33 +379,29 @@ const route = async (request: Request, env: Env): Promise<Response> => {
       .first();
     if (!visit) return err("Posjet ne postoji", 404);
     const type = request.headers.get("content-type") || "";
-    if (!["image/jpeg", "image/png", "image/webp", "image/heic"].includes(type))
-      return err("Podržane su JPEG, PNG, WebP i HEIC slike");
-    if (Number(request.headers.get("content-length") || 0) > 8_000_000)
+    if (!["image/jpeg", "image/png", "image/webp"].includes(type))
+      return err("Podržane su JPEG, PNG i WebP slike");
+    if (Number(request.headers.get("content-length") || 0) > 1_500_000)
       return err("Slika je prevelika");
     const bytes = await request.arrayBuffer();
-    if (bytes.byteLength > 8_000_000) return err("Slika je prevelika");
-    const id = crypto.randomUUID(),
-      key = `${photoVisit}/${id}`;
-    await env.PHOTOS.put(key, bytes, { httpMetadata: { contentType: type } });
+    if (bytes.byteLength > 1_500_000) return err("Slika je prevelika");
+    const id = crypto.randomUUID();
     await env.DB.prepare(
-      "INSERT INTO photos (id,visit_id,user_id,object_key,content_type) VALUES (?,?,?,?,?)",
+      "INSERT INTO photos (id,visit_id,user_id,content_type,bytes) VALUES (?,?,?,?,?)",
     )
-      .bind(id, photoVisit, user.id, key, type)
+      .bind(id, photoVisit, user.id, type, bytes)
       .run();
     return json({ id }, 201);
   }
   const photoId = path.match(/^\/photos\/([^/]+)$/)?.[1];
   if (photoId && method === "GET") {
     const row = await env.DB.prepare(
-      "SELECT object_key,content_type FROM photos WHERE id = ?",
+      "SELECT bytes,content_type FROM photos WHERE id = ?",
     )
       .bind(photoId)
-      .first<{ object_key: string; content_type: string }>();
+      .first<{ bytes: number[]; content_type: string }>();
     if (!row) return err("Slika ne postoji", 404);
-    const object = await env.PHOTOS.get(row.object_key);
-    if (!object) return err("Slika ne postoji", 404);
-    return new Response(object.body, {
+    return new Response(new Uint8Array(row.bytes), {
       headers: {
         "Content-Type": row.content_type,
         "Cache-Control": "private, max-age=3600",
@@ -430,14 +410,11 @@ const route = async (request: Request, env: Env): Promise<Response> => {
     });
   }
   if (photoId && method === "DELETE") {
-    const row = await env.DB.prepare(
-      "SELECT object_key FROM photos WHERE id = ?",
-    )
+    const row = await env.DB.prepare("SELECT id FROM photos WHERE id = ?")
       .bind(photoId)
-      .first<{ object_key: string }>();
+      .first<{ id: string }>();
     if (!row) return err("Slika ne postoji", 404);
     await env.DB.prepare("DELETE FROM photos WHERE id = ?").bind(photoId).run();
-    await env.PHOTOS.delete(row.object_key);
     return json({ ok: true });
   }
   return err("Nije pronađeno", 404);
