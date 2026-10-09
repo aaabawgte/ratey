@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint src worker",
     "preview": "vite preview",
-    "api:dev": "wrangler dev",
+    "api:dev": "wrangler dev --var ALLOWED_ORIGIN:http://localhost:5173",
     "api:types": "wrangler types worker/env.d.ts",
     "api:check": "npm run api:types && tsc -p tsconfig.worker.json --noEmit",
     "test": "vitest run"

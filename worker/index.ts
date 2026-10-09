@@ -268,7 +268,7 @@ const route = async (request: Request, env: Env): Promise<Response> => {
         ? v.id
         : crypto.randomUUID();
     await env.DB.prepare(
-      "INSERT INTO places (id,name,kind,address,city,lat,lng,source_id,created_by) VALUES (?,?,?,?,?,?,?,?,?)",
+      "INSERT OR IGNORE INTO places (id,name,kind,address,city,lat,lng,source_id,created_by) VALUES (?,?,?,?,?,?,?,?,?)",
     )
       .bind(id, name, kind, address, city, lat, lng, sourceId, user.id)
       .run();

@@ -18,7 +18,7 @@ Geoapify pokreće pretragu mjesta i pločice karte. Ako pretraga ne nađe mjesto
 ## Produkcija
 
 1. U Cloudflare računu stvori D1 bazu `ratey` i R2 spremnik `ratey-photos`.
-2. Upisati stvarni D1 `database_id` u `wrangler.jsonc` i promijeniti `ALLOWED_ORIGIN` u adresu GitHub Pagesa, npr. `https://korisnik.github.io`. Ovo je *origin*, bez `/ratey/` na kraju.
+2. Upisati stvarni D1 `database_id` u `wrangler.jsonc`. `ALLOWED_ORIGIN` je već postavljen na `https://aaabawgte.github.io`; ako se frontend preseli, promijeni ga na novi *origin*, bez `/ratey/` na kraju.
 3. Postavi Worker secrets `INVITE_CODE` (jak, nasumičan kod) i `GEOAPIFY_KEY` (`npx wrangler secret put ...`). Ne spremaj ih u Git. Geoapify ključ ograniči po mogućnosti i prati potrošnju.
 4. Pokreni `npx wrangler d1 migrations apply ratey --remote`, zatim `npx wrangler deploy`.
 5. Na GitHub repozitoriju postavi Actions varijablu `VITE_API_URL` na HTTPS adresu Workera, npr. `https://ratey-api.korisnik.workers.dev`. U Settings → Pages odaberi GitHub Actions kao izvor. Push na `main` automatski gradi i objavljuje frontend.
