@@ -13,6 +13,7 @@ export default defineConfig({
         name: "Ratey — naša mjesta",
         short_name: "Ratey",
         description: "Naša karta restorana i kafića",
+        lang: "hr",
         theme_color: "#f8f6f2",
         background_color: "#f8f6f2",
         display: "standalone",
