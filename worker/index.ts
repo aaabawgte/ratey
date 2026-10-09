@@ -129,8 +129,8 @@ const route = async (request: Request, env: Env): Promise<Response> => {
     const password = str(input.password, 200);
     if (!same(str(input.invite, 200), env.INVITE_CODE) || !env.INVITE_CODE)
       return err("Nevažeća pozivnica", 403);
-    if (name.length < 2 || password.length < 12)
-      return err("Ime mora imati 2, a lozinka barem 12 znakova");
+    if (name.length < 2 || password.length < 6)
+      return err("Ime mora imati 2, a lozinka barem 6 znakova");
     const count = await env.DB.prepare(
       "SELECT count(*) AS n FROM users",
     ).first<{ n: number }>();

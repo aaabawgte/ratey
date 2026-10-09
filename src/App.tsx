@@ -818,11 +818,11 @@ function Login({ onLogin }: { onLogin: (token: string, user: User) => void }) {
             <input
               type="password"
               autoComplete={register ? "new-password" : "current-password"}
-              minLength={register ? 12 : undefined}
+              minLength={register ? 6 : undefined}
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Najmanje 12 znakova"
+              placeholder="Najmanje 6 znakova"
             />
           </label>
           {register && (
