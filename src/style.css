@@ -1336,3 +1336,428 @@ a {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Lagani pomaci i jasni dodiri, bez promjene rasporeda. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0.8;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes orbit-drift {
+  from {
+    transform: rotate(-6deg) translateY(0);
+  }
+  to {
+    transform: rotate(6deg) translateY(-8px);
+  }
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes pin-settle {
+  from {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-45deg) scale(1);
+  }
+}
+@keyframes day-select {
+  from {
+    transform: scale(0.82);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+:is(button, input, textarea):focus-visible {
+  outline: 2px solid #e97157;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-shell main > * {
+    animation: rise-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--enter-delay, 0ms);
+  }
+  .app-shell main > :nth-child(2) {
+    --enter-delay: 55ms;
+  }
+  .app-shell main > :nth-child(3) {
+    --enter-delay: 105ms;
+  }
+  .app-shell main > :nth-child(4) {
+    --enter-delay: 150ms;
+  }
+  .app-shell main > :nth-child(n + 5) {
+    --enter-delay: 190ms;
+  }
+  .app-shell main > .map-panel {
+    animation-name: fade-in;
+  }
+  .hero-orbit,
+  .auth-art-inner {
+    animation: orbit-drift 9s ease-in-out infinite alternate;
+  }
+  .hero h1,
+  .auth-content h1 {
+    animation: rise-in 520ms 70ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .quick-stats strong,
+  .stat-grid strong {
+    animation: rise-in 420ms 130ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .topbar .brand,
+  .top-actions {
+    animation: fade-in 450ms both;
+  }
+  .top-actions {
+    animation-delay: 100ms;
+  }
+
+  .place-list > *,
+  .visit-list > *,
+  .horizontal-list > *,
+  .stat-grid > *,
+  .month-bars > *,
+  .category-winner,
+  .rank-row,
+  .detail-visit,
+  .people-ratings > * {
+    animation: rise-in 390ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  :is(
+      .place-list,
+      .visit-list,
+      .horizontal-list,
+      .stat-grid,
+      .month-bars,
+      .people-ratings
+    )
+    > :nth-child(2),
+  .rank-row:nth-of-type(2),
+  .category-winner:nth-of-type(2),
+  .detail-visit:nth-of-type(2) {
+    animation-delay: 45ms;
+  }
+  :is(
+      .place-list,
+      .visit-list,
+      .horizontal-list,
+      .stat-grid,
+      .month-bars,
+      .people-ratings
+    )
+    > :nth-child(3),
+  .rank-row:nth-of-type(3),
+  .category-winner:nth-of-type(3),
+  .detail-visit:nth-of-type(3) {
+    animation-delay: 85ms;
+  }
+  :is(
+      .place-list,
+      .visit-list,
+      .horizontal-list,
+      .stat-grid,
+      .month-bars,
+      .people-ratings
+    )
+    > :nth-child(4),
+  .rank-row:nth-of-type(4),
+  .category-winner:nth-of-type(4),
+  .detail-visit:nth-of-type(4) {
+    animation-delay: 120ms;
+  }
+  :is(
+      .place-list,
+      .visit-list,
+      .horizontal-list,
+      .stat-grid,
+      .month-bars,
+      .people-ratings
+    )
+    > :nth-child(n + 5),
+  .rank-row:nth-of-type(n + 5),
+  .category-winner:nth-of-type(n + 5),
+  .detail-visit:nth-of-type(n + 5) {
+    animation-delay: 150ms;
+  }
+  .month-bars i {
+    transform-origin: left center;
+    animation: bar-grow 650ms 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .primary,
+  .secondary,
+  .chip,
+  .kind-toggle button,
+  .calendar-head button,
+  .icon-button,
+  .locate-button,
+  .upload-box,
+  .avatar,
+  .update-banner button {
+    transition:
+      transform 180ms ease,
+      background-color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      color 180ms ease;
+    touch-action: manipulation;
+  }
+  .primary:active,
+  .secondary:active,
+  .chip:active,
+  .kind-toggle button:active,
+  .calendar-head button:active,
+  .icon-button:active,
+  .locate-button:active,
+  .update-banner button:active {
+    transform: scale(0.96);
+  }
+  .primary:active {
+    box-shadow: 0 2px 7px #bd63452e;
+  }
+  .nav-item {
+    position: relative;
+    transition: color 180ms ease;
+    touch-action: manipulation;
+  }
+  .nav-item svg {
+    transition:
+      transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+      stroke-width 180ms ease;
+  }
+  .nav-item.active svg {
+    transform: translateY(-3px);
+  }
+  .nav-item:active svg {
+    transform: translateY(-1px) scale(0.9);
+  }
+  .nav-item::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    width: 17px;
+    height: 3px;
+    border-radius: 3px;
+    background: #e97157;
+    transform: scaleX(0);
+    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .nav-item.active::after {
+    transform: scaleX(1);
+  }
+
+  .pending-card,
+  .place-card {
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 220ms ease,
+      box-shadow 220ms ease;
+    touch-action: manipulation;
+  }
+  .pending-card:active,
+  .place-card:active {
+    transform: scale(0.985);
+  }
+  .kind-icon svg,
+  .rate-link svg,
+  .text-button svg {
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .pending-card:active .rate-link svg,
+  .text-button:active svg {
+    transform: translateX(3px);
+  }
+  .visit-row,
+  .rank-row,
+  .category-winner,
+  .suggestions button {
+    transition:
+      background-color 180ms ease,
+      color 180ms ease;
+    touch-action: manipulation;
+  }
+  .visit-row:active,
+  .rank-row:active,
+  .category-winner:active,
+  .suggestions button:active {
+    background: #f7f5ef;
+  }
+  .calendar-grid button {
+    transition:
+      background-color 200ms ease,
+      color 200ms ease,
+      transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    touch-action: manipulation;
+  }
+  .calendar-grid button.selected {
+    animation: day-select 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .calendar-grid button:active {
+    transform: scale(0.88);
+  }
+  .pin {
+    animation: pin-settle 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+  .pin-wrap:active .pin {
+    transform: rotate(-45deg) scale(1.12);
+  }
+
+  .modal-backdrop {
+    animation: fade-in 220ms ease both;
+  }
+  .sheet {
+    animation: sheet-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .sheet form > * {
+    animation: rise-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .sheet form > :nth-child(2) {
+    animation-delay: 35ms;
+  }
+  .sheet form > :nth-child(3) {
+    animation-delay: 70ms;
+  }
+  .sheet form > :nth-child(4) {
+    animation-delay: 105ms;
+  }
+  .sheet form > :nth-child(n + 5) {
+    animation-delay: 140ms;
+  }
+  .suggestions {
+    animation: rise-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .suggestions button {
+    animation: fade-in 260ms both;
+  }
+  .suggestions button:nth-child(2) {
+    animation-delay: 35ms;
+  }
+  .suggestions button:nth-child(n + 3) {
+    animation-delay: 65ms;
+  }
+  .sheet input:not([type="range"], [type="checkbox"], [type="file"]),
+  .sheet textarea,
+  .auth-content input {
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+  .sheet input:focus,
+  .sheet textarea:focus,
+  .auth-content input:focus {
+    box-shadow: 0 0 0 3px #e7785c22;
+  }
+  .rating-field input[type="range"] {
+    transition: transform 160ms ease;
+  }
+  .rating-field input[type="range"]:active {
+    transform: scaleY(1.12);
+  }
+  .photo-thumb {
+    transition:
+      transform 220ms ease,
+      box-shadow 220ms ease;
+  }
+  .photo-thumb:active {
+    transform: scale(0.97);
+  }
+  .auth-content {
+    animation: rise-in 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .toast,
+  .sync-note,
+  .update-banner,
+  .form-error {
+    animation: rise-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .primary:not(:disabled):hover,
+  .secondary:hover,
+  .calendar-head button:hover,
+  .icon-button:hover,
+  .locate-button:hover {
+    transform: translateY(-2px);
+  }
+  .pending-card:hover,
+  .place-card:hover {
+    transform: translateY(-3px);
+    border-color: #dbcfc1;
+    box-shadow: 0 9px 25px #253e3412;
+  }
+  .pending-card:hover .kind-icon svg,
+  .place-card:hover .kind-icon svg {
+    transform: rotate(-8deg);
+  }
+  .pending-card:hover .rate-link svg,
+  .text-button:hover svg {
+    transform: translateX(3px);
+  }
+  .visit-row:hover,
+  .rank-row:hover,
+  .category-winner:hover,
+  .suggestions button:hover {
+    background: #faf8f3;
+  }
+  .calendar-grid button:not(.selected):hover {
+    background: #f3eee7;
+    transform: scale(1.06);
+  }
+  .photo-thumb:hover {
+    transform: scale(1.03);
+    box-shadow: 0 8px 22px #17332f20;
+  }
+  .pin-wrap:hover .pin {
+    transform: rotate(-45deg) scale(1.1);
+    box-shadow: 0 6px 16px #15241b60;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
