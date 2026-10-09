@@ -956,11 +956,12 @@ function PlaceForm({
       place ? [place.lat, place.lng] : null,
     ),
     [source, setSource] = useState(place?.source_id || ""),
+    [selectedSuggestion, setSelectedSuggestion] = useState(false),
     [results, setResults] = useState<Suggestion[]>([]),
     [loading, setLoading] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
-    if (name.trim().length < 3 || source) {
+    if (name.trim().length < 3 || source || selectedSuggestion) {
       return;
     }
     const id = setTimeout(() => {
@@ -974,13 +975,17 @@ function PlaceForm({
         .catch(() => setResults([]));
     }, 400);
     return () => clearTimeout(id);
-  }, [name, source, token]);
+  }, [name, source, selectedSuggestion, token]);
   const select = (r: Suggestion) => {
-    setName(r.name);
+    const typedName = name.trim();
+    const firstWord = typedName.split(/\s+/)[0]?.toLocaleLowerCase("hr");
+    const isNameMatch = r.name.toLocaleLowerCase("hr").includes(firstWord);
+    setName(isNameMatch ? r.name : typedName);
     setAddress(r.address);
     setCity(r.city);
     setCoords([Number(r.lat), Number(r.lng)]);
-    setSource(r.source_id);
+    setSource(isNameMatch ? r.source_id : "");
+    setSelectedSuggestion(true);
     setResults([]);
   };
   const submit = async (e: React.FormEvent) => {
@@ -1075,6 +1080,7 @@ function PlaceForm({
               onChange={(e) => {
                 setName(e.target.value);
                 setSource("");
+                setSelectedSuggestion(false);
                 setResults([]);
               }}
               placeholder="Npr. Batak Family Mall"

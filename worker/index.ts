@@ -216,25 +216,64 @@ const route = async (request: Request, env: Env): Promise<Response> => {
   if (path === "/places/search" && method === "GET") {
     const q = str(url.searchParams.get("q"), 80);
     if (q.length < 3) return json({ results: [] });
-    const api = new URL("https://api.geoapify.com/v1/geocode/autocomplete");
-    api.searchParams.set("text", q);
-    api.searchParams.set("lang", "hr");
-    api.searchParams.set("limit", "6");
-    api.searchParams.set("apiKey", env.GEOAPIFY_KEY);
-    const response = await fetch(api);
-    if (!response.ok) return err("Pretraga trenutačno nije dostupna", 502);
-    const result = (await response.json()) as {
-      features?: { properties: Record<string, unknown> }[];
-    };
+    const placeApis = ["catering.restaurant", "catering.cafe"].map(
+      (category) => {
+        const api = new URL("https://api.geoapify.com/v2/places");
+        api.searchParams.set("categories", category);
+        api.searchParams.set("name", q);
+        api.searchParams.set("bias", "proximity:15.982,45.815");
+        api.searchParams.set("limit", "6");
+        api.searchParams.set("lang", "hr");
+        api.searchParams.set("apiKey", env.GEOAPIFY_KEY);
+        return api;
+      },
+    );
+    const addressApi = new URL(
+      "https://api.geoapify.com/v1/geocode/autocomplete",
+    );
+    addressApi.searchParams.set("text", q);
+    addressApi.searchParams.set("bias", "proximity:15.982,45.815");
+    addressApi.searchParams.set("lang", "hr");
+    addressApi.searchParams.set("limit", "6");
+    addressApi.searchParams.set("apiKey", env.GEOAPIFY_KEY);
+    type Feature = { properties: Record<string, unknown> };
+    const responses = await Promise.all(
+      [...placeApis, addressApi].map((api) => fetch(api)),
+    );
+    if (responses.every((r) => !r.ok))
+      return err("Pretraga trenutačno nije dostupna", 502);
+    const collections = await Promise.all(
+      responses.map(async (response) =>
+        response.ok
+          ? ((await response.json()) as { features?: Feature[] }).features || []
+          : [],
+      ),
+    );
+    const seen = new Set<string>();
+    const results = collections.flat().flatMap((feature) => {
+      const p = feature.properties;
+      const lat = Number(p.lat),
+        lng = Number(p.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+      const name = String(p.name || p.address_line1 || q);
+      const sourceId = String(p.place_id || "");
+      const identity =
+        sourceId || `${name}:${lat.toFixed(5)}:${lng.toFixed(5)}`;
+      if (seen.has(identity)) return [];
+      seen.add(identity);
+      return [
+        {
+          name,
+          address: String(p.formatted || ""),
+          city: String(p.city || ""),
+          lat,
+          lng,
+          source_id: sourceId,
+        },
+      ];
+    });
     return json({
-      results: (result.features || []).map((f) => ({
-        name: f.properties.name || f.properties.address_line1 || q,
-        address: f.properties.formatted || "",
-        city: f.properties.city || "",
-        lat: f.properties.lat,
-        lng: f.properties.lon,
-        source_id: f.properties.place_id,
-      })),
+      results: results.slice(0, 8),
     });
   }
   if (path === "/places" && method === "POST") {
