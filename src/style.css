@@ -1800,3 +1800,196 @@ a {
     scroll-behavior: auto !important;
   }
 }
+
+.theme-toggle {
+  width: 37px;
+  height: 37px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e4e8df;
+  border-radius: 50%;
+  color: #46665a;
+  background: #fff;
+  transition:
+    transform 180ms ease,
+    background 180ms ease;
+}
+.theme-toggle:active {
+  transform: scale(0.92);
+}
+.auth-content {
+  position: relative;
+}
+.auth-theme-toggle {
+  position: absolute;
+  top: 27px;
+  right: 27px;
+}
+.visit-rating-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+.visit-rating-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #cf7358;
+  font-size: 11px;
+  font-weight: 700;
+}
+.visit-rating-summary button {
+  padding: 8px 10px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+:root[data-theme="dark"] {
+  background: #101918;
+  color: #eaf0e8;
+}
+[data-theme="dark"] .app-shell,
+[data-theme="dark"] .topbar,
+[data-theme="dark"] .auth-page {
+  background: #101918;
+}
+[data-theme="dark"] .topbar,
+[data-theme="dark"] .bottom-nav {
+  border-color: #304139;
+}
+[data-theme="dark"] .bottom-nav,
+[data-theme="dark"] .quick-stats,
+[data-theme="dark"] .pending-card,
+[data-theme="dark"] .visit-list,
+[data-theme="dark"] .visit-row,
+[data-theme="dark"] .search-line,
+[data-theme="dark"] .chip,
+[data-theme="dark"] .place-card,
+[data-theme="dark"] .empty,
+[data-theme="dark"] .calendar-card,
+[data-theme="dark"] .stat-grid > div,
+[data-theme="dark"] .rank-row,
+[data-theme="dark"] .month-bars,
+[data-theme="dark"] .category-winner,
+[data-theme="dark"] .category-list > div,
+[data-theme="dark"] .detail-visit,
+[data-theme="dark"] .theme-toggle {
+  background: #1b2926;
+  border-color: #34453e;
+  color: #eaf0e8;
+}
+[data-theme="dark"] .sheet {
+  background: #17221f;
+}
+[data-theme="dark"] .sheet-head,
+[data-theme="dark"] .rating-field,
+[data-theme="dark"] .visit-row,
+[data-theme="dark"] .rank-row,
+[data-theme="dark"] .category-winner,
+[data-theme="dark"] .quick-stats > div {
+  border-color: #34453e;
+}
+[data-theme="dark"]
+  .sheet
+  input:not([type="range"], [type="checkbox"], [type="file"]),
+[data-theme="dark"] .sheet textarea,
+[data-theme="dark"] .auth-content input,
+[data-theme="dark"] .suggestions,
+[data-theme="dark"] .suggestions button,
+[data-theme="dark"] .kind-toggle button,
+[data-theme="dark"] .icon-button,
+[data-theme="dark"] .calendar-head button {
+  background: #23332e;
+  border-color: #3b5045;
+  color: #eaf0e8;
+}
+[data-theme="dark"] .kind-toggle button.selected,
+[data-theme="dark"] .chip.active,
+[data-theme="dark"] .calendar-grid button.selected {
+  background: #315b49;
+  border-color: #5a8d70;
+  color: #fff;
+}
+[data-theme="dark"] .calendar-grid button {
+  color: #eaf0e8;
+}
+[data-theme="dark"] .search-line input {
+  color: #eaf0e8;
+}
+[data-theme="dark"] .calendar-grid button:not(.selected):hover,
+[data-theme="dark"] .visit-row:hover,
+[data-theme="dark"] .rank-row:hover,
+[data-theme="dark"] .category-winner:hover,
+[data-theme="dark"] .suggestions button:hover {
+  background: #2b4036;
+}
+[data-theme="dark"] .secondary,
+[data-theme="dark"] .count,
+[data-theme="dark"] .tag,
+[data-theme="dark"] .avatar span,
+[data-theme="dark"] .mini-avatar,
+[data-theme="dark"] .chosen-address {
+  background: #2a4135;
+  color: #cee8d4;
+  border-color: #466551;
+}
+[data-theme="dark"] .date-badge,
+[data-theme="dark"] .kind-icon,
+[data-theme="dark"] .score-pill {
+  background: #46352d;
+  color: #ffb090;
+}
+[data-theme="dark"] .pin-label {
+  background: #23332e;
+  color: #eaf0e8;
+  border-color: #466051;
+}
+[data-theme="dark"] .map-panel,
+[data-theme="dark"] .pick-map {
+  border-color: #34453e;
+  background: #16231f;
+}
+[data-theme="dark"] .leaflet-tile-pane {
+  filter: brightness(0.58) saturate(0.7) contrast(1.1);
+}
+[data-theme="dark"] .leaflet-control-zoom a,
+[data-theme="dark"] .leaflet-control-attribution {
+  background: #23332e;
+  color: #dce9dc;
+}
+[data-theme="dark"] .leaflet-control-attribution a {
+  color: #ffad8c;
+}
+[data-theme="dark"] .month-bars > div > div,
+[data-theme="dark"] .photo-placeholder {
+  background: #304239;
+}
+[data-theme="dark"] .form-error {
+  background: #49302b;
+  color: #ffc2af;
+}
+[data-theme="dark"] .upload-box {
+  border-color: #4a6653;
+  color: #c6dfca;
+}
+[data-theme="dark"] .sync-note {
+  background: #3e3423;
+  color: #ffd492;
+}
+[data-theme="dark"] .brand small,
+[data-theme="dark"] .pending-card small,
+[data-theme="dark"] .visit-info small,
+[data-theme="dark"] .place-card-text small,
+[data-theme="dark"] .rank-row small,
+[data-theme="dark"] .detail-visit p,
+[data-theme="dark"] .form-intro,
+[data-theme="dark"] .page-title p,
+[data-theme="dark"] .stat-grid span,
+[data-theme="dark"] .auth-content > p,
+[data-theme="dark"] .chosen-address small,
+[data-theme="dark"] .field-label,
+[data-theme="dark"] .field-label strong {
+  color: #aabaae;
+}

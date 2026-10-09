@@ -4,7 +4,9 @@ const rating = (
   user_id: string,
   service: number,
   food: number | null,
+  visit_id = "v1",
 ): Rating => ({
+  visit_id,
   place_id: "p",
   user_id,
   service,
@@ -27,4 +29,15 @@ describe("zajedničke ocjene", () => {
     ).toBe(9.5));
   it("privremena ocjena koristi dostupnu osobu", () =>
     expect(placeAverage([rating("a", 9, 7)])).toBe(8));
+  it("svaku posjetu jednako uključuje u prosjek mjesta", () =>
+    expect(
+      ratingAverage(
+        [
+          rating("a", 9, null, "v1"),
+          rating("b", 7, null, "v1"),
+          rating("a", 10, null, "v2"),
+        ],
+        "service",
+      ),
+    ).toBe(9));
 });

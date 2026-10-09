@@ -20,6 +20,8 @@ import {
   Coffee,
   Check,
   Navigation,
+  Moon,
+  Sun,
 } from "lucide-react";
 import {
   api,
@@ -287,6 +289,32 @@ function App() {
     "place" | "editPlace" | "visit" | "rating" | null
   >(null);
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
+  const [ratingVisit, setRatingVisit] = useState<Visit | null>(null);
+  const [themeChoice, setThemeChoice] = useState<"system" | "light" | "dark">(
+    () => (localStorage.getItem("ratey_theme") as "light" | "dark") || "system",
+  );
+  const [systemDark, setSystemDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  const dark = themeChoice === "system" ? systemDark : themeChoice === "dark";
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const change = () => setSystemDark(media.matches);
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", dark ? "#101918" : "#f8f6f2");
+  }, [dark]);
+  const toggleTheme = () => {
+    const next = dark ? "light" : "dark";
+    localStorage.setItem("ratey_theme", next);
+    setThemeChoice(next);
+  };
   const [notice, setNotice] = useState("");
   const [offline, setOffline] = useState(!navigator.onLine);
   const updateSW = useRef<((reloadPage?: boolean) => Promise<void>) | null>(
@@ -403,11 +431,13 @@ function App() {
   }, [applyPendingUpdate]);
   const ratingsFor = (id: string) =>
     data.ratings.filter((r) => r.place_id === id);
+  const visitRatingsFor = (id: string) =>
+    data.ratings.filter((r) => r.visit_id === id);
   const visitsFor = (id: string) =>
     data.visits.filter((v) => v.place_id === id);
-  const pending = data.places.filter(
-    (p) =>
-      !data.ratings.some((r) => r.place_id === p.id && r.user_id === user?.id),
+  const pending = data.visits.filter(
+    (v) =>
+      !data.ratings.some((r) => r.visit_id === v.id && r.user_id === user?.id),
   );
   const filtered = data.places.filter(
     (p) =>
@@ -416,12 +446,14 @@ function App() {
   );
   const openPlace = (p: Place) => {
     setSelected(p);
+    setRatingVisit(null);
     setScreen(null);
   };
   const close = () => {
     setSelected(null);
     setScreen(null);
     setEditingVisit(null);
+    setRatingVisit(null);
   };
   const saved = async (message = "Spremljeno!") => {
     if (navigator.onLine) await refresh();
@@ -459,6 +491,8 @@ function App() {
   if (!token || !user)
     return (
       <Login
+        dark={dark}
+        onToggleTheme={toggleTheme}
         onLogin={(t, u) => {
           localStorage.setItem("ratey_token", t);
           localStorage.setItem("ratey_user", JSON.stringify(u));
@@ -485,6 +519,14 @@ function App() {
               <WifiOff size={14} /> Offline
             </span>
           )}
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={dark ? "Uključi svijetli način" : "Uključi tamni način"}
+            title={dark ? "Svijetli način" : "Tamni način"}
+          >
+            {dark ? <Sun size={19} /> : <Moon size={19} />}
+          </button>
           <button className="avatar" onClick={logout} title="Odjavi se">
             <span>{user.name.slice(0, 1).toUpperCase()}</span>
             <LogOut size={15} />
@@ -535,29 +577,35 @@ function App() {
                   <span className="count">{pending.length}</span>
                 </div>
                 <div className="horizontal-list">
-                  {pending.map((p) => (
-                    <button
-                      key={p.id}
-                      className="pending-card"
-                      onClick={() => {
-                        setSelected(p);
-                        setScreen("rating");
-                      }}
-                    >
-                      <span className="kind-icon">
-                        {p.kind === "restaurant" ? (
-                          <Utensils size={19} />
-                        ) : (
-                          <Coffee size={19} />
-                        )}
-                      </span>
-                      <strong>{p.name}</strong>
-                      <small>{p.city || p.address || "Novo mjesto"}</small>
-                      <span className="rate-link">
-                        Ocijeni <ChevronRight size={15} />
-                      </span>
-                    </button>
-                  ))}
+                  {pending.map((v) => {
+                    const p = data.places.find(
+                      (place) => place.id === v.place_id,
+                    );
+                    return p ? (
+                      <button
+                        key={v.id}
+                        className="pending-card"
+                        onClick={() => {
+                          setSelected(p);
+                          setRatingVisit(v);
+                          setScreen("rating");
+                        }}
+                      >
+                        <span className="kind-icon">
+                          {p.kind === "restaurant" ? (
+                            <Utensils size={19} />
+                          ) : (
+                            <Coffee size={19} />
+                          )}
+                        </span>
+                        <strong>{p.name}</strong>
+                        <small>{prettyDate(v.visited_at)}</small>
+                        <span className="rate-link">
+                          Ocijeni <ChevronRight size={15} />
+                        </span>
+                      </button>
+                    ) : null;
+                  })}
                 </div>
               </section>
             )}
@@ -595,7 +643,7 @@ function App() {
                         </span>
                         <span className="score-mini">
                           <Star size={14} fill="currentColor" />
-                          {formatScore(placeAverage(ratingsFor(p.id)))}
+                          {formatScore(placeAverage(visitRatingsFor(v.id)))}
                         </span>
                       </button>
                     ) : null;
@@ -690,6 +738,7 @@ function App() {
               setTab(key);
               setSelected(null);
               setScreen(null);
+              setRatingVisit(null);
             }}
           >
             <Icon size={22} strokeWidth={tab === key ? 2.5 : 1.8} />
@@ -757,7 +806,10 @@ function App() {
             setEditingVisit(v);
             setScreen("visit");
           }}
-          onRate={() => setScreen("rating")}
+          onRate={(v) => {
+            setRatingVisit(v);
+            setScreen("rating");
+          }}
           onRefresh={saved}
         />
       )}
@@ -771,24 +823,30 @@ function App() {
             setScreen(null);
             setEditingVisit(null);
           }}
-          onSaved={async () => {
+          onSaved={async (v, isNew) => {
             await saved("Posjet spremljen!");
-            setScreen(null);
+            setRatingVisit(isNew ? v : null);
+            setScreen(isNew ? "rating" : null);
             setEditingVisit(null);
           }}
         />
       )}
-      {selected && screen === "rating" && (
+      {selected && ratingVisit && screen === "rating" && (
         <RatingForm
           place={selected}
+          visit={ratingVisit}
           user={user}
           current={data.ratings.find(
-            (r) => r.place_id === selected.id && r.user_id === user.id,
+            (r) => r.visit_id === ratingVisit.id && r.user_id === user.id,
           )}
-          onClose={() => setScreen(null)}
+          onClose={() => {
+            setScreen(null);
+            setRatingVisit(null);
+          }}
           onSaved={async () => {
             await saved("Ocjena spremljena!");
             setScreen(null);
+            setRatingVisit(null);
           }}
         />
       )}
@@ -807,7 +865,15 @@ function App() {
     </div>
   );
 }
-function Login({ onLogin }: { onLogin: (token: string, user: User) => void }) {
+function Login({
+  onLogin,
+  dark,
+  onToggleTheme,
+}: {
+  onLogin: (token: string, user: User) => void;
+  dark: boolean;
+  onToggleTheme: () => void;
+}) {
   const [register, setRegister] = useState(false),
     [name, setName] = useState(""),
     [password, setPassword] = useState(""),
@@ -845,6 +911,14 @@ function Login({ onLogin }: { onLogin: (token: string, user: User) => void }) {
         </div>
       </div>
       <div className="auth-content">
+        <button
+          className="theme-toggle auth-theme-toggle"
+          onClick={onToggleTheme}
+          aria-label={dark ? "Uključi svijetli način" : "Uključi tamni način"}
+          title={dark ? "Svijetli način" : "Tamni način"}
+        >
+          {dark ? <Sun size={19} /> : <Moon size={19} />}
+        </button>
         <div className="brand">
           <span className="brand-mark">
             r<span>.</span>
@@ -1272,7 +1346,7 @@ function VisitForm({
   token: string;
   visit: Visit | null;
   onClose: () => void;
-  onSaved: () => Promise<void>;
+  onSaved: (visit: Visit, isNew: boolean) => Promise<void>;
 }) {
   const [date, setDate] = useState(visit?.visited_at || today()),
     [note, setNote] = useState(visit?.note || ""),
@@ -1313,7 +1387,17 @@ function VisitForm({
                 ...d.visits,
               ],
         }));
-        await onSaved();
+        await onSaved(
+          {
+            id,
+            place_id: place.id,
+            user_id: user.id,
+            visited_at: date,
+            note,
+            created_at: visit?.created_at || new Date().toISOString(),
+          },
+          !visit,
+        );
         return;
       }
       const id =
@@ -1343,7 +1427,17 @@ function VisitForm({
             "Posjet je spremljen, ali jedna fotografija nije. Pokušaj je dodati ponovno.",
           );
       }
-      await onSaved();
+      await onSaved(
+        {
+          id,
+          place_id: place.id,
+          user_id: user.id,
+          visited_at: date,
+          note,
+          created_at: visit?.created_at || new Date().toISOString(),
+        },
+        !visit,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Greška");
     } finally {
@@ -1403,12 +1497,14 @@ function VisitForm({
 }
 function RatingForm({
   place,
+  visit,
   user,
   current,
   onClose,
   onSaved,
 }: {
   place: Place;
+  visit: Visit;
   user: User;
   current?: Rating;
   onClose: () => void;
@@ -1432,7 +1528,7 @@ function RatingForm({
     try {
       if (!navigator.onLine) {
         queueAction({
-          path: `/ratings/${place.id}`,
+          path: `/visits/${visit.id}/ratings`,
           method: "PUT",
           payload: values,
         });
@@ -1440,11 +1536,12 @@ function RatingForm({
           ...d,
           ratings: [
             ...d.ratings.filter(
-              (r) => !(r.place_id === place.id && r.user_id === user.id),
+              (r) => !(r.visit_id === visit.id && r.user_id === user.id),
             ),
             {
               ...values,
               place_id: place.id,
+              visit_id: visit.id,
               user_id: user.id,
               updated_at: new Date().toISOString(),
             },
@@ -1453,7 +1550,7 @@ function RatingForm({
         await onSaved();
         return;
       }
-      await api(`/ratings/${place.id}`, "PUT", values);
+      await api(`/visits/${visit.id}/ratings`, "PUT", values);
       await onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Greška");
@@ -1462,10 +1559,11 @@ function RatingForm({
     }
   };
   return (
-    <Modal title={`Ocijeni · ${place.name}`} onClose={onClose}>
+    <Modal title={`Ocijeni posjet · ${place.name}`} onClose={onClose}>
       <form onSubmit={submit}>
         <p className="form-intro">
-          Tvoja ocjena je samo tvoja. Zajednički prosjek računamo automatski.
+          {prettyDate(visit.visited_at)} · Tvoja ocjena je samo tvoja.
+          Zajednički prosjek računamo automatski.
         </p>
         {categories.map(([key, label]) => (
           <div className="rating-field" key={key}>
@@ -1530,7 +1628,7 @@ function PlaceDetail({
   onDeletePlace: () => Promise<void>;
   onVisit: () => void;
   onEditVisit: (visit: Visit) => void;
-  onRate: () => void;
+  onRate: (visit: Visit) => void;
   onRefresh: (message?: string) => Promise<void>;
 }) {
   const ratings = data.ratings.filter((r) => r.place_id === place.id),
@@ -1571,9 +1669,9 @@ function PlaceDetail({
             <small> / 10</small>
           </strong>
           <p>
-            {ratings.length < 2
-              ? "Privremena ocjena · čeka drugu osobu"
-              : "Ocijenili ste oboje"}
+            {ratings.length
+              ? `${ratings.length} ocjena kroz ${new Set(ratings.map((r) => r.visit_id)).size} posjeta`
+              : "Još nema ocjena"}
           </p>
         </div>
         <Star size={34} fill="currentColor" />
@@ -1588,7 +1686,7 @@ function PlaceDetail({
       </div>
       <div className="people-ratings">
         {data.users.map((u) => {
-          const r = ratings.find((x) => x.user_id === u.id);
+          const personRatings = ratings.filter((x) => x.user_id === u.id);
           return (
             <div key={u.id}>
               <span className="mini-avatar">
@@ -1596,7 +1694,9 @@ function PlaceDetail({
               </span>
               <span>{u.name}</span>
               <strong>
-                {r ? formatScore(placeAverage([r])) : "Čeka ocjenu"}
+                {personRatings.length
+                  ? formatScore(placeAverage(personRatings))
+                  : "Čeka ocjenu"}
               </strong>
             </div>
           );
@@ -1606,51 +1706,62 @@ function PlaceDetail({
         <button className="primary" onClick={onVisit}>
           <Plus size={18} /> Novi posjet
         </button>
-        <button className="secondary" onClick={onRate}>
-          <Star size={18} />{" "}
-          {ratings.some((r) => r.user_id === user.id)
-            ? "Uredi ocjenu"
-            : "Ocijeni"}
-        </button>
       </div>
       <div className="section-heading detail-heading">
         <h3>Vaši posjeti</h3>
         <span className="count">{visits.length}</span>
       </div>
       {visits.length ? (
-        visits.map((v) => (
-          <div className="detail-visit" key={v.id}>
-            <div>
-              <strong>{prettyDate(v.visited_at)}</strong>
-              <div className="visit-links">
-                <button className="delete-link" onClick={() => onEditVisit(v)}>
-                  Uredi
-                </button>
-                <button
-                  className="delete-link"
-                  onClick={() => void removeVisit(v)}
-                >
-                  Obriši
+        visits.map((v) => {
+          const visitRatings = ratings.filter((r) => r.visit_id === v.id);
+          const mine = visitRatings.some((r) => r.user_id === user.id);
+          return (
+            <div className="detail-visit" key={v.id}>
+              <div>
+                <strong>{prettyDate(v.visited_at)}</strong>
+                <div className="visit-links">
+                  <button
+                    className="delete-link"
+                    onClick={() => onEditVisit(v)}
+                  >
+                    Uredi
+                  </button>
+                  <button
+                    className="delete-link"
+                    onClick={() => void removeVisit(v)}
+                  >
+                    Obriši
+                  </button>
+                </div>
+              </div>
+              {v.note && <p>{v.note}</p>}
+              <div className="visit-rating-summary">
+                <span>
+                  <Star size={14} fill="currentColor" />{" "}
+                  {formatScore(placeAverage(visitRatings))} / 10 ·{" "}
+                  {visitRatings.length}/2 ocjene
+                </span>
+                <button className="secondary" onClick={() => onRate(v)}>
+                  {mine ? "Uredi moju ocjenu" : "Ocijeni posjet"}
                 </button>
               </div>
+              {data.photos.some((p) => p.visit_id === v.id) && (
+                <div className="photo-grid">
+                  {data.photos
+                    .filter((p) => p.visit_id === v.id)
+                    .map((p) => (
+                      <PhotoThumb
+                        key={p.id}
+                        id={p.id}
+                        token={token}
+                        className="photo-thumb"
+                      />
+                    ))}
+                </div>
+              )}
             </div>
-            {v.note && <p>{v.note}</p>}
-            {data.photos.some((p) => p.visit_id === v.id) && (
-              <div className="photo-grid">
-                {data.photos
-                  .filter((p) => p.visit_id === v.id)
-                  .map((p) => (
-                    <PhotoThumb
-                      key={p.id}
-                      id={p.id}
-                      token={token}
-                      className="photo-thumb"
-                    />
-                  ))}
-              </div>
-            )}
-          </div>
-        ))
+          );
+        })
       ) : (
         <Empty text="Još nema zabilježenih posjeta." />
       )}
@@ -1830,8 +1941,13 @@ function Stats({
   const repeated = data.places.filter(
     (p) => data.visits.filter((v) => v.place_id === p.id).length > 1,
   ).length;
-  const agreement = [...rated]
-    .filter((x) => x.ratings.length === 2)
+  const agreement = data.visits
+    .map((visit) => ({
+      visit,
+      p: data.places.find((place) => place.id === visit.place_id),
+      ratings: data.ratings.filter((r) => r.visit_id === visit.id),
+    }))
+    .filter((x) => x.p && x.ratings.length === 2)
     .map((x) => ({
       ...x,
       difference: Math.abs(
@@ -1917,7 +2033,10 @@ function Stats({
               <span className="rank">{String(i + 1).padStart(2, "0")}</span>
               <span>
                 <strong>{x.p.name}</strong>
-                <small>{x.ratings.length}/2 ocjene</small>
+                <small>
+                  {x.ratings.length} ocjena kroz{" "}
+                  {new Set(x.ratings.map((r) => r.visit_id)).size} posjeta
+                </small>
               </span>
               <b>{formatScore(placeAverage(x.ratings))}</b>
             </button>
@@ -1934,19 +2053,21 @@ function Stats({
           agreement.slice(0, 3).map((x) => (
             <button
               className="rank-row"
-              key={x.p.id}
-              onClick={() => openPlace(x.p)}
+              key={x.visit.id}
+              onClick={() => x.p && openPlace(x.p)}
             >
               <span className="rank">↔</span>
               <span>
-                <strong>{x.p.name}</strong>
-                <small>Razlika u ukupnoj ocjeni</small>
+                <strong>{x.p?.name}</strong>
+                <small>
+                  {prettyDate(x.visit.visited_at)} · razlika u ocjeni
+                </small>
               </span>
               <b>{formatScore(x.difference)}</b>
             </button>
           ))
         ) : (
-          <Empty text="Ovo postaje zanimljivo kad oboje ocijenite ista mjesta." />
+          <Empty text="Ovo postaje zanimljivo kad oboje ocijenite isti posjet." />
         )}
       </section>
       <section className="section">

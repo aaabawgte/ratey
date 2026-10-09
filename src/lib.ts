@@ -20,6 +20,7 @@ export type Visit = {
   created_at: string;
 };
 export type Rating = {
+  visit_id: string;
   place_id: string;
   user_id: string;
   service: number;
@@ -63,11 +64,18 @@ export const ratingAverage = (
     "service" | "ambience" | "value" | "location" | "food"
   >,
 ) => {
-  const values = ratings
-    .map((r) => r[key])
-    .filter((n): n is number => typeof n === "number");
-  return values.length
-    ? values.reduce((a, b) => a + b, 0) / values.length
+  const visits = new Map<string, number[]>();
+  ratings.forEach((rating, index) => {
+    const value = rating[key];
+    if (typeof value !== "number") return;
+    const id = rating.visit_id || `legacy-${index}`;
+    visits.set(id, [...(visits.get(id) || []), value]);
+  });
+  const averages = [...visits.values()].map(
+    (values) => values.reduce((a, b) => a + b, 0) / values.length,
+  );
+  return averages.length
+    ? averages.reduce((a, b) => a + b, 0) / averages.length
     : null;
 };
 export const placeAverage = (ratings: Rating[]) => {

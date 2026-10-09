@@ -115,7 +115,9 @@ const data = async (env: Env) => {
     env.DB.prepare(
       "SELECT * FROM visits ORDER BY visited_at DESC, created_at DESC",
     ).all(),
-    env.DB.prepare("SELECT * FROM ratings").all(),
+    env.DB.prepare(
+      "SELECT r.*, v.place_id FROM visit_ratings r JOIN visits v ON v.id = r.visit_id",
+    ).all(),
     env.DB.prepare("SELECT id,visit_id,user_id,created_at FROM photos").all(),
   ]);
   return json({
@@ -407,23 +409,30 @@ const route = async (request: Request, env: Env): Promise<Response> => {
     await env.DB.prepare("DELETE FROM visits WHERE id = ?").bind(visitId).run();
     return json({ ok: true });
   }
-  const ratingPlace = path.match(/^\/ratings\/([^/]+)$/)?.[1];
-  if (ratingPlace && method === "PUT") {
+  const ratingVisit = path.match(/^\/visits\/([^/]+)\/ratings$/)?.[1];
+  const legacyRatingPlace = path.match(/^\/ratings\/([^/]+)$/)?.[1];
+  if ((ratingVisit || legacyRatingPlace) && method === "PUT") {
     const v = await body(request);
     if (
       ![v.service, v.ambience, v.value, v.location].every(score) ||
       !(v.food === null || score(v.food))
     )
       return err("Ocjene moraju biti od 1 do 10 u koracima od 0,5");
-    const place = await env.DB.prepare("SELECT id FROM places WHERE id = ?")
-      .bind(ratingPlace)
-      .first();
-    if (!place) return err("Mjesto ne postoji", 404);
+    const visit = ratingVisit
+      ? await env.DB.prepare("SELECT id FROM visits WHERE id = ?")
+          .bind(ratingVisit)
+          .first<{ id: string }>()
+      : await env.DB.prepare(
+          "SELECT id FROM visits WHERE place_id = ? ORDER BY visited_at DESC, created_at DESC, id DESC LIMIT 1",
+        )
+          .bind(legacyRatingPlace)
+          .first<{ id: string }>();
+    if (!visit) return err("Posjet ne postoji", 404);
     await env.DB.prepare(
-      "INSERT INTO ratings (place_id,user_id,service,ambience,value,location,food) VALUES (?,?,?,?,?,?,?) ON CONFLICT(place_id,user_id) DO UPDATE SET service=excluded.service,ambience=excluded.ambience,value=excluded.value,location=excluded.location,food=excluded.food,updated_at=CURRENT_TIMESTAMP",
+      "INSERT INTO visit_ratings (visit_id,user_id,service,ambience,value,location,food) VALUES (?,?,?,?,?,?,?) ON CONFLICT(visit_id,user_id) DO UPDATE SET service=excluded.service,ambience=excluded.ambience,value=excluded.value,location=excluded.location,food=excluded.food,updated_at=CURRENT_TIMESTAMP",
     )
       .bind(
-        ratingPlace,
+        visit.id,
         user.id,
         v.service,
         v.ambience,
