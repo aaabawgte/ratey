@@ -348,11 +348,18 @@ function App() {
       void flushQueue().then(refresh);
     };
     const onOffline = () => setOffline(true);
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        void flushQueue().then(refresh);
+      }
+    };
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [refresh]);
   useEffect(() => {
