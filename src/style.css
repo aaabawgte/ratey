@@ -450,6 +450,36 @@ a {
   background: transparent;
   border: 0;
 }
+.pin-marker {
+  position: relative;
+  width: 38px;
+  height: 44px;
+}
+.pin-label {
+  position: absolute;
+  top: 42px;
+  left: 19px;
+  transform: translateX(-50%);
+  max-width: 128px;
+  padding: 4px 7px;
+  border: 1px solid #e8e1d7;
+  border-radius: 7px;
+  background: #fffdf9;
+  box-shadow: 0 3px 9px #182c231c;
+  color: #244036;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pin-label-side {
+  top: 7px;
+  left: -7px;
+  transform: translateX(-100%);
+}
 .pin {
   width: 38px;
   height: 38px;
@@ -867,8 +897,15 @@ a {
   padding-left: 40px !important;
 }
 .field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   font-size: 11px;
   color: #7e8f82;
+}
+.field-label strong {
+  color: #244036;
+  font-size: 12px;
 }
 .kind-toggle {
   display: grid;
@@ -898,6 +935,8 @@ a {
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
+  max-height: 170px;
+  overflow-y: auto;
   margin-top: -8px;
 }
 .suggestions button {
@@ -929,10 +968,39 @@ a {
   white-space: nowrap;
 }
 .pick-map {
-  height: 180px;
+  height: 240px;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid #dfdfd6;
+}
+.chosen-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid #dce7da;
+  border-radius: 11px;
+  background: #f5f8f2;
+  color: #285b45;
+}
+.chosen-address svg {
+  flex: none;
+  margin-top: 1px;
+}
+.chosen-address span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.chosen-address strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.chosen-address small {
+  color: #718475;
+  font-size: 10px;
+  line-height: 1.4;
 }
 .locate-button {
   border: 0;

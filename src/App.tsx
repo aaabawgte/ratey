@@ -43,13 +43,12 @@ import {
 } from "./lib";
 
 type Tab = "home" | "map" | "calendar" | "stats";
-type Suggestion = {
-  name: string;
+type LocationSuggestion = {
   address: string;
   city: string;
+  detail: string;
   lat: number;
   lng: number;
-  source_id: string;
 };
 const center: [number, number] = [45.815, 15.982];
 const kindName = (kind: Place["kind"]) =>
@@ -157,14 +156,39 @@ function MapCanvas({
       group = layer.current;
     if (!instance || !group) return;
     group.clearLayers();
-    places.forEach((place) => {
+    places.forEach((place, index) => {
+      const marker = document.createElement("div");
+      marker.className = "pin-marker";
+      const symbol = document.createElement("span");
+      symbol.className = `pin ${place.kind}`;
+      symbol.textContent = place.kind === "restaurant" ? "✦" : "●";
+      const label = document.createElement("span");
+      label.className = "pin-label";
+      if (
+        places
+          .slice(0, index)
+          .some(
+            (other) =>
+              L.latLng(other.lat, other.lng).distanceTo([
+                place.lat,
+                place.lng,
+              ]) < 1800,
+          )
+      ) {
+        label.classList.add("pin-label-side");
+      }
+      label.textContent = place.name;
+      marker.append(symbol, label);
       const icon = L.divIcon({
         className: "pin-wrap",
-        html: `<span class="pin ${place.kind}">${place.kind === "restaurant" ? "✦" : "●"}</span>`,
+        html: marker,
         iconSize: [38, 44],
         iconAnchor: [19, 38],
       });
+      const tooltip = document.createElement("span");
+      tooltip.textContent = `${place.name}${place.address ? ` · ${place.address}` : ""}`;
       L.marker([place.lat, place.lng], { icon })
+        .bindTooltip(tooltip)
         .addTo(group)
         .on("click", () => onSelect?.(place));
     });
@@ -955,45 +979,82 @@ function PlaceForm({
     [coords, setCoords] = useState<[number, number] | null>(
       place ? [place.lat, place.lng] : null,
     ),
-    [source, setSource] = useState(place?.source_id || ""),
-    [selectedSuggestion, setSelectedSuggestion] = useState(false),
-    [results, setResults] = useState<Suggestion[]>([]),
+    [query, setQuery] = useState(""),
+    [results, setResults] = useState<LocationSuggestion[]>([]),
+    [addressStatus, setAddressStatus] = useState<
+      "idle" | "loading" | "ready" | "missing"
+    >(place ? "ready" : "idle"),
     [loading, setLoading] = useState(false),
     [error, setError] = useState("");
+  const lookupId = useRef(0);
   useEffect(() => {
-    if (name.trim().length < 3 || source || selectedSuggestion) {
-      return;
-    }
+    if (query.trim().length < 3 || !navigator.onLine) return;
+    let active = true;
     const id = setTimeout(() => {
-      void api<{ results: Suggestion[] }>(
-        `/places/search?q=${encodeURIComponent(name)}`,
+      void api<{ results: LocationSuggestion[] }>(
+        `/locations/search?q=${encodeURIComponent(query.trim())}`,
         "GET",
         undefined,
         token,
       )
-        .then((r) => setResults(r.results))
-        .catch(() => setResults([]));
-    }, 400);
-    return () => clearTimeout(id);
-  }, [name, source, selectedSuggestion, token]);
-  const select = (r: Suggestion) => {
-    const typedName = name.trim();
-    const firstWord = typedName.split(/\s+/)[0]?.toLocaleLowerCase("hr");
-    const isNameMatch = r.name.toLocaleLowerCase("hr").includes(firstWord);
-    setName(isNameMatch ? r.name : typedName);
+        .then((r) => {
+          if (active) setResults(r.results);
+        })
+        .catch(() => {
+          if (active) setResults([]);
+        });
+    }, 350);
+    return () => {
+      active = false;
+      clearTimeout(id);
+    };
+  }, [query, token]);
+  const select = (r: LocationSuggestion) => {
+    lookupId.current += 1;
     setAddress(r.address);
     setCity(r.city);
     setCoords([Number(r.lat), Number(r.lng)]);
-    setSource(isNameMatch ? r.source_id : "");
-    setSelectedSuggestion(true);
+    setAddressStatus(r.address ? "ready" : "missing");
+    setQuery("");
     setResults([]);
+    setError("");
+  };
+  const pickLocation = (lat: number, lng: number) => {
+    const id = ++lookupId.current;
+    setCoords([lat, lng]);
+    setAddress("");
+    setCity("");
+    setResults([]);
+    setQuery("");
+    setError("");
+    if (!navigator.onLine) {
+      setAddressStatus("missing");
+      return;
+    }
+    setAddressStatus("loading");
+    void api<{ address: string; city: string }>(
+      `/locations/reverse?lat=${lat}&lng=${lng}`,
+      "GET",
+      undefined,
+      token,
+    )
+      .then((result) => {
+        if (id !== lookupId.current) return;
+        setAddress(result.address);
+        setCity(result.city);
+        setAddressStatus(result.address ? "ready" : "missing");
+      })
+      .catch(() => {
+        if (id === lookupId.current) setAddressStatus("missing");
+      });
   };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!coords) {
-      setError("Odaberi rezultat pretrage ili postavi pin na karti");
+      setError("Odaberi adresu pretragom ili postavi pin na karti");
       return;
     }
+    if (addressStatus === "loading") return;
     setLoading(true);
     setError("");
     try {
@@ -1007,7 +1068,7 @@ function PlaceForm({
           city,
           lat: coords[0],
           lng: coords[1],
-          source_id: source || null,
+          source_id: null,
         };
         queueAction({
           path: place ? `/places/${id}` : "/places",
@@ -1040,7 +1101,7 @@ function PlaceForm({
           city,
           lat: coords[0],
           lng: coords[1],
-          source_id: source || null,
+          source_id: null,
         },
         token,
       );
@@ -1072,78 +1133,94 @@ function PlaceForm({
         </div>
         <label>
           Naziv mjesta
-          <div className="field-icon">
-            <Search size={18} />
-            <input
-              required
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setSource("");
-                setSelectedSuggestion(false);
-                setResults([]);
-              }}
-              placeholder="Npr. Batak Family Mall"
-            />
-          </div>
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Npr. Naš omiljeni Batak"
+          />
         </label>
+        <div className="field-label">
+          <strong>Adresa na karti</strong>
+          <span>Potraži ulicu ili grad pa dodirni točno mjesto na karti.</span>
+        </div>
+        <div className="field-icon">
+          <Search size={18} />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setResults([]);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (results[0]) select(results[0]);
+              }
+            }}
+            placeholder="Traži adresu ili grad..."
+            aria-label="Traži adresu ili grad"
+          />
+        </div>
         {results.length > 0 && (
           <div className="suggestions">
             {results.map((r, i) => (
               <button type="button" key={i} onClick={() => select(r)}>
                 <MapPin size={16} />
                 <span>
-                  <strong>{r.name}</strong>
-                  <small>{r.address}</small>
+                  <strong>{r.address}</strong>
+                  {r.detail && <small>{r.detail}</small>}
                 </span>
               </button>
             ))}
           </div>
         )}
-        <label>
-          Adresa
-          <input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Ulica i broj (neobavezno)"
-          />
-        </label>
-        <label>
-          Grad
-          <input
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder="Grad"
-          />
-        </label>
-        <div className="field-label">
-          {coords
-            ? "Pin je postavljen. Dodirni kartu za promjenu."
-            : "Dodirni kartu za ručno postavljanje pina"}
-        </div>
         <div className="pick-map">
           <MapCanvas
             places={[]}
             token={token}
             picked={coords || undefined}
-            pick={(lat, lng) => setCoords([lat, lng])}
+            pick={pickLocation}
           />
         </div>
         <button
           type="button"
           className="locate-button"
-          onClick={() =>
+          onClick={() => {
             navigator.geolocation.getCurrentPosition(
-              (pos) => setCoords([pos.coords.latitude, pos.coords.longitude]),
+              (pos) => pickLocation(pos.coords.latitude, pos.coords.longitude),
               () => setError("Lokacija nije dostupna"),
-            )
-          }
+            );
+          }}
         >
-          <Navigation size={17} /> Postavi pin na moju lokaciju
+          <Navigation size={17} /> Pronađi moju lokaciju
         </button>
+        <div className="chosen-address" aria-live="polite">
+          <MapPin size={17} />
+          <span>
+            <strong>
+              {addressStatus === "loading"
+                ? "Tražim adresu..."
+                : address ||
+                  (coords ? "Pin je postavljen" : "Odaberi lokaciju")}
+            </strong>
+            <small>
+              {addressStatus === "missing" && coords
+                ? "Nema točne adrese za ovu točku, ali pin će biti spremljen."
+                : city ||
+                  (coords
+                    ? "Dodirni kartu za promjenu pina."
+                    : "Dodirni kartu ili potraži adresu.")}
+            </small>
+          </span>
+        </div>
         {error && <div className="form-error">{error}</div>}
-        <button className="primary full" disabled={loading}>
-          {loading ? "Spremam..." : "Dodaj mjesto"}
+        <button
+          className="primary full"
+          disabled={loading || addressStatus === "loading"}
+        >
+          {loading ? "Spremam..." : place ? "Spremi promjene" : "Dodaj mjesto"}
         </button>
       </form>
     </Modal>
