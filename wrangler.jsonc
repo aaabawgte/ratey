@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ratey-api",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "secrets": { "required": ["INVITE_CODE", "GEOAPIFY_KEY"] },
+  "vars": { "ALLOWED_ORIGIN": "http://localhost:5173" },
+  "d1_databases": [{ "binding": "DB", "database_name": "ratey", "database_id": "replace-with-your-d1-id", "migrations_dir": "migrations" }],
+  "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "ratey-photos" }]
+}
