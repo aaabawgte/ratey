@@ -1,9 +1,10 @@
 /* ==========================================================================
    Ratey — stilovi
-   1. Tokeni   2. Osnova   3. Okvir aplikacije   4. Zajedničke komponente
-   5. Početna  6. Karta    7. Kalendar           8. Statistika
-   9. Modal i obrasci      10. Detalji mjesta    11. Prijava
-   12. Obavijesti          13. Leaflet           14. Kretanje
+   1. Tokeni   2. Osnova   3. Okvir i dock   4. Zajedničke komponente
+   5. Početna  6. Karta    7. Kalendar i statistika
+   8. Modal i obrasci      9. Detalji mjesta    10. Prijava
+   11. Obavijesti          12. Leaflet          13. Stanja i širine
+   14. Kretanje
    ========================================================================== */
 
 /* 1. Tokeni ---------------------------------------------------------------- */
@@ -48,8 +49,7 @@
   --r-pill: 999px;
 
   --gutter: 20px;
-  --topbar-h: 60px;
-  --nav-h: 64px;
+  --dock-h: 62px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -136,92 +136,56 @@ svg {
   outline-offset: 2px;
 }
 
-/* 3. Okvir aplikacije ------------------------------------------------------ */
-.app-shell {
+/* 3. Okvir i dock ---------------------------------------------------------- */
+.app {
   min-height: 100dvh;
-  max-width: 720px;
+  max-width: 680px;
   margin-inline: auto;
-  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 28px);
+  padding-bottom: calc(var(--dock-h) + var(--safe-bottom) + 56px);
 }
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+.masthead {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: calc(var(--topbar-h) + var(--safe-top));
-  padding: var(--safe-top) max(12px, env(safe-area-inset-right)) 0
+  height: calc(56px + var(--safe-top));
+  padding: var(--safe-top) max(10px, env(safe-area-inset-right)) 0
     max(var(--gutter), env(safe-area-inset-left));
-  background: color-mix(in srgb, var(--bg) 84%, transparent);
-  -webkit-backdrop-filter: saturate(1.5) blur(14px);
-  backdrop-filter: saturate(1.5) blur(14px);
-  border-bottom: 1px solid var(--line);
 }
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.brand-mark {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--ink);
-  color: var(--on-ink);
-  font-size: 1.25rem;
+.wordmark {
+  font-size: 1.375rem;
   font-weight: 650;
+  letter-spacing: -0.045em;
   line-height: 1;
-  letter-spacing: -0.04em;
 }
-.brand-mark span {
-  color: var(--accent-on-ink);
+.wordmark i {
+  font-style: normal;
+  color: var(--accent);
 }
-.brand > div {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-  white-space: nowrap;
+.wordmark-lg {
+  font-size: 2rem;
 }
-.brand strong {
-  font-size: var(--fs-lg);
-  font-weight: 650;
-  letter-spacing: -0.03em;
-}
-.brand small {
-  font-size: var(--fs-xs);
-  color: var(--text-3);
-}
-.top-actions {
+.masthead-actions {
   display: flex;
   align-items: center;
   gap: 2px;
-  flex: none;
 }
-.theme-toggle,
-.avatar,
 .icon-button,
-.calendar-head button {
+.avatar {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--r-pill);
-}
-.theme-toggle {
-  width: 44px;
   height: 44px;
+  border-radius: var(--r-pill);
   color: var(--text-2);
+}
+.icon-button {
+  width: 44px;
 }
 .avatar {
   gap: 8px;
-  height: 44px;
-  padding: 0 8px 0 6px;
+  padding: 0 10px 0 6px;
   color: var(--text-3);
 }
 .avatar span,
@@ -245,47 +209,63 @@ svg {
   font-weight: 500;
   color: var(--warn);
 }
-.bottom-nav {
+
+.dock {
   position: fixed;
-  inset: auto 0 0;
+  inset: auto 0 calc(14px + var(--safe-bottom));
   z-index: 110;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  width: min(100%, 720px);
-  height: calc(var(--nav-h) + var(--safe-bottom));
-  margin-inline: auto;
-  padding-bottom: var(--safe-bottom);
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  -webkit-backdrop-filter: saturate(1.5) blur(14px);
-  backdrop-filter: saturate(1.5) blur(14px);
-  border-top: 1px solid var(--line);
-}
-.nav-item {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: fit-content;
+  margin-inline: auto;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+  backdrop-filter: saturate(1.6) blur(18px);
+  box-shadow: var(--shadow-md);
+}
+.dock-item {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  font-size: var(--fs-xs);
-  font-weight: 500;
+  gap: 7px;
+  min-width: 46px;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
   color: var(--text-3);
-}
-.nav-item.active {
-  color: var(--text);
+  font-size: var(--fs-sm);
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
-.nav-item:focus-visible {
-  outline-offset: -4px;
-  border-radius: var(--r-md);
+.dock-item.active {
+  background: var(--fill);
+  color: var(--text);
+}
+.dock-item:not(.active) span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.dock-add {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-inline: 4px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--on-ink);
 }
 
 /* 4. Zajedničke komponente ------------------------------------------------- */
-.eyebrow {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--text-3);
-}
 .dot {
   color: var(--accent);
 }
@@ -297,7 +277,7 @@ svg {
   gap: 8px;
   min-height: 48px;
   padding: 0 20px;
-  border-radius: var(--r-md);
+  border-radius: var(--r-pill);
   font-size: var(--fs-base);
   font-weight: 600;
   letter-spacing: -0.005em;
@@ -318,27 +298,54 @@ svg {
   width: 100%;
   min-height: 52px;
 }
-.text-button {
+.text-button,
+.link-button,
+.auth-switch,
+.locate-button {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   min-height: 44px;
-  margin-block: -10px;
-  padding: 0 4px 0 8px;
+  padding: 0 10px;
   border-radius: var(--r-sm);
   font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-2);
 }
+.text-button {
+  margin: -10px -10px -10px 0;
+}
+.link-button.danger {
+  color: var(--danger);
+}
+.page-title,
+.intro {
+  padding: 28px var(--gutter) 0;
+}
+.page-title h1,
+.drawer-head h1 {
+  font-size: var(--fs-2xl);
+  font-weight: 650;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+.page-title p {
+  margin-top: 6px;
+  font-size: var(--fs-base);
+  color: var(--text-2);
+}
+.page-title + * {
+  margin-top: 28px;
+}
 .section {
-  margin: 36px var(--gutter) 0;
+  margin: 44px var(--gutter) 0;
 }
 .section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
 }
 .section-heading h2,
 .section-heading h3 {
@@ -357,286 +364,242 @@ svg {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.page-title {
-  padding: 32px var(--gutter) 20px;
-}
-.page-title h1 {
-  margin: 8px 0 6px;
-  font-size: var(--fs-xl);
-  font-weight: 650;
-  letter-spacing: -0.035em;
-  line-height: 1.1;
-}
-.page-title p {
+.empty {
+  padding: 28px 0;
+  border-block: 1px solid var(--line);
   font-size: var(--fs-base);
-  color: var(--text-2);
+  color: var(--text-3);
 }
-.kind-icon {
+.section-heading + .empty {
+  margin-top: 10px;
+}
+
+/* Ravni redak: zajednički za posjete, mjesta, rang-liste i kategorije */
+.rows {
+  margin-inline: -10px;
+}
+.row {
+  width: 100%;
+  min-height: 66px;
+  padding: 12px 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.row:last-child {
+  border-bottom: 0;
+}
+.row:focus-visible,
+.suggestions button:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--r-md);
+}
+.row-lead {
   flex: none;
   display: grid;
   place-items: center;
   width: 40px;
+}
+.kind-icon {
   height: 40px;
   border-radius: var(--r-md);
   background: var(--fill);
   color: var(--text-2);
 }
-.empty {
-  padding: 28px 20px;
-  border: 1px dashed var(--line);
-  border-radius: var(--r-lg);
-  text-align: center;
-  font-size: var(--fs-sm);
-  color: var(--text-2);
-}
-
-/* Liste redaka: posjeti, rang-liste, kategorije */
-.visit-list,
-.row-list {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-}
-.visit-row,
-.rank-row,
-.category-winner {
-  width: 100%;
-  min-height: 64px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-align: left;
-  border-bottom: 1px solid var(--line);
-}
-.visit-row:last-child,
-.rank-row:last-child,
-.category-winner:last-child {
-  border-bottom: 0;
-}
-:is(
-  .visit-row,
-  .rank-row,
-  .category-winner,
-  .suggestions button
-):focus-visible {
-  outline-offset: -2px;
-  border-radius: var(--r-md);
-}
-.visit-row > svg {
-  color: var(--text-3);
-}
-.date-badge {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 48px;
-  border-radius: var(--r-md);
-  background: var(--fill);
+.date-lead {
   line-height: 1.1;
 }
-.date-badge strong {
-  font-size: var(--fs-md);
+.date-lead strong {
+  font-size: 1.25rem;
   font-weight: 600;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
-.date-badge small {
+.date-lead small {
   font-size: var(--fs-xs);
   color: var(--text-3);
 }
-.visit-info,
-.rank-text,
-.place-card-text {
+.rank {
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.row-main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.visit-info strong,
-.rank-text strong,
-.place-card-text strong,
-.category-winner strong {
+.row-main strong,
+.row-main small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--fs-base);
-  font-weight: 600;
-  letter-spacing: -0.01em;
 }
-.visit-info small,
-.rank-text small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.row-main strong {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.row-main small {
   font-size: var(--fs-sm);
   color: var(--text-3);
 }
-.score-mini,
-.score-pill {
+.row-trail {
   flex: none;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-md);
   font-weight: 600;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
-.score-mini svg,
-.score-pill svg {
+svg.row-trail {
+  color: var(--text-3);
+}
+.score,
+.entry-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.score svg,
+.entry-score svg {
   color: var(--accent);
 }
-.score-pill {
-  padding: 6px 10px;
+.row-action {
+  flex: none;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+/* Velike brojke */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 28px var(--gutter) 0;
+  border-block: 1px solid var(--line);
+}
+.figures > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: 18px 0;
+}
+.figures dt {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.figures dd {
+  margin: 0;
+  font-size: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.figures-4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.figures-4 > div {
+  padding: 20px 0;
+}
+.figures-4 > div:nth-child(-n + 2) {
+  border-bottom: 1px solid var(--line);
+}
+
+/* Trake: mjeseci i ocjene po kategoriji */
+.bars > div,
+.score-bars > div {
+  display: grid;
+  grid-template-columns: 84px 1fr 40px;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.bars > div > div,
+.score-bars > div > div {
+  height: 6px;
   border-radius: var(--r-pill);
   background: var(--fill);
 }
-
-/* 5. Početna --------------------------------------------------------------- */
-.hero {
-  margin: var(--gutter) var(--gutter) 0;
-  padding: 32px 26px 28px;
-  border: 1px solid var(--inverse);
-  border-radius: var(--r-xl);
-  background: var(--inverse);
-  color: var(--on-inverse);
+.bars i,
+.score-bars i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--text);
 }
-:root[data-theme="dark"] .hero {
-  border-color: var(--line);
-}
-.hero .eyebrow {
-  color: color-mix(in srgb, var(--on-inverse) 62%, transparent);
-}
-.hero h1 {
-  margin: 16px 0 12px;
-  font-size: var(--fs-2xl);
-  font-weight: 650;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
-}
-.hero h1 em {
-  font-style: normal;
-  color: color-mix(in srgb, var(--on-inverse) 58%, transparent);
-}
-.hero p {
-  max-width: 32ch;
-  margin-bottom: 26px;
+.bars b,
+.score-bars b {
+  text-align: right;
   font-size: var(--fs-base);
-  line-height: 1.55;
-  color: color-mix(in srgb, var(--on-inverse) 74%, transparent);
-}
-.hero .primary {
-  background: var(--on-inverse);
-  color: var(--inverse);
-}
-.hero .primary:focus-visible {
-  outline-color: var(--on-inverse);
-}
-.quick-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  margin: 12px var(--gutter) 0;
-  padding: 18px 0;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-}
-.quick-stats > div {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  border-right: 1px solid var(--line);
-}
-.quick-stats > div:last-child {
-  border-right: 0;
-}
-.quick-stats strong {
-  font-size: 1.5rem;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.quick-stats span {
+
+/* 5. Početna --------------------------------------------------------------- */
+.kicker {
   font-size: var(--fs-sm);
   color: var(--text-3);
 }
-.horizontal-list {
-  display: flex;
-  gap: 10px;
-  margin: -6px calc(var(--gutter) * -1);
-  padding: 6px var(--gutter);
-  overflow-x: auto;
-  scroll-padding-inline: var(--gutter);
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
+.kicker::first-letter {
+  text-transform: uppercase;
 }
-.horizontal-list::-webkit-scrollbar {
-  display: none;
+.intro h1 {
+  margin-top: 6px;
+  font-size: clamp(2.5rem, 11vw, 3.25rem);
+  font-weight: 650;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  overflow-wrap: anywhere;
 }
-.pending-card {
-  flex: 0 0 172px;
-  min-width: 0;
-  min-height: 164px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+.todo {
+  --line: color-mix(in srgb, var(--text) 11%, transparent);
+  margin-inline: calc(var(--gutter) - 8px);
+  padding: 18px 18px 4px;
+  border-radius: var(--r-xl);
+  background: var(--fill);
+}
+.todo .kind-icon,
+.todo .count {
   background: var(--surface);
-  scroll-snap-align: start;
-}
-.pending-card strong,
-.pending-card small {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pending-card strong {
-  margin-top: 14px;
-  font-size: var(--fs-base);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.pending-card small {
-  margin-top: 2px;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-}
-.rate-link {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: auto;
-  padding-top: 12px;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--accent);
 }
 
 /* 6. Karta ----------------------------------------------------------------- */
-.map-panel,
-.pick-map {
-  overflow: hidden;
-  border: 1px solid var(--line);
+.map-stage {
+  height: 46dvh;
+  min-height: 280px;
   background: var(--fill);
-}
-.map-panel {
-  height: 320px;
-  margin: 0 var(--gutter) 14px;
-  border-radius: var(--r-lg);
 }
 .map-canvas {
   width: 100%;
   height: 100%;
   z-index: 0;
+}
+.map-drawer {
+  position: relative;
+  z-index: 1;
+  margin-top: calc(var(--r-xl) * -1);
+  padding: 22px var(--gutter) 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--bg);
+  box-shadow: 0 -10px 30px rgb(0 0 0 / 0.08);
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .pin-wrap {
   background: transparent;
@@ -668,6 +631,13 @@ svg {
   margin: auto;
   border-radius: 50%;
   background: #fff;
+}
+.pin-marker.active .pin {
+  transform: rotate(-45deg) scale(1.22);
+  transform-origin: 20% 80%;
+}
+.pin-marker.active .pin-label {
+  border-color: var(--text);
 }
 .pin.cafe {
   background: #b4481f;
@@ -704,10 +674,10 @@ svg {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 var(--gutter);
-  padding: 0 14px;
+  margin-top: 16px;
+  padding: 0 16px;
   border: 1px solid var(--field-line);
-  border-radius: var(--r-md);
+  border-radius: var(--r-pill);
   background: var(--surface);
   color: var(--text-3);
 }
@@ -731,8 +701,8 @@ svg {
 }
 .chips {
   display: flex;
-  gap: 8px;
-  margin: 8px 0 12px;
+  gap: 6px;
+  margin: 8px calc(var(--gutter) * -1) 6px;
   padding: 4px var(--gutter);
   overflow-x: auto;
   scrollbar-width: none;
@@ -741,81 +711,72 @@ svg {
   flex: none;
   min-height: 40px;
   padding: 0 16px;
-  border: 1px solid var(--line);
   border-radius: var(--r-pill);
-  background: var(--surface);
+  background: var(--fill);
   color: var(--text-2);
   font-size: var(--fs-sm);
   font-weight: 500;
   white-space: nowrap;
 }
 .chip.active {
-  border-color: var(--ink);
   background: var(--ink);
   color: var(--on-ink);
 }
-.place-list {
+
+/* Pregled odabranog pina: mala kartica iznad docka */
+.peek {
+  position: fixed;
+  inset: auto 0 calc(var(--dock-h) + var(--safe-bottom) + 26px);
+  z-index: 105;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 var(--gutter);
+  align-items: center;
+  width: min(100% - 28px, 420px);
+  margin-inline: auto;
+  padding: 6px 6px 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
 }
-.place-card {
-  width: 100%;
-  min-height: 68px;
-  padding: 12px 14px 12px 12px;
+.peek-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  text-align: left;
-  border: 1px solid var(--line);
+  min-height: 56px;
+  padding: 6px 8px 6px 6px;
   border-radius: var(--r-lg);
-  background: var(--surface);
+  text-align: left;
 }
-.place-card-text small {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-}
-.place-card-text small span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.peek ~ .toast,
+.peek ~ .sync-note {
+  bottom: calc(var(--dock-h) + var(--safe-bottom) + 112px);
 }
 
-/* 7. Kalendar -------------------------------------------------------------- */
-.calendar-card {
-  margin: 0 var(--gutter);
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
+/* 7. Kalendar i statistika ------------------------------------------------- */
+.calendar {
+  margin-inline: var(--gutter);
 }
 .calendar-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin: 0 -10px 8px 0;
 }
 .calendar-head strong {
-  font-size: var(--fs-md);
+  font-size: var(--fs-lg);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   text-transform: capitalize;
 }
-.calendar-head button {
-  width: 44px;
-  height: 44px;
-  color: var(--text-2);
+.calendar-head > div {
+  display: flex;
 }
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 2px;
   text-align: center;
 }
 .calendar-grid > * {
@@ -824,6 +785,8 @@ svg {
   place-items: center;
 }
 .weekday {
+  aspect-ratio: auto;
+  padding-block: 8px;
   font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--text-3);
@@ -831,7 +794,7 @@ svg {
 .calendar-grid button {
   position: relative;
   border-radius: 50%;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-base);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -854,98 +817,7 @@ svg {
   background: var(--on-ink);
 }
 
-/* 8. Statistika ------------------------------------------------------------ */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin: 0 var(--gutter);
-}
-.stat-grid > div {
-  min-height: 100px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-}
-.stat-grid span {
-  font-size: var(--fs-sm);
-  color: var(--text-2);
-}
-.stat-grid strong {
-  font-size: var(--fs-xl);
-  font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.rank {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-}
-.rank-row b,
-.category-winner b {
-  flex: none;
-  font-size: var(--fs-md);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.category-winner {
-  min-height: 56px;
-}
-.category-winner span {
-  flex: 0 0 84px;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-}
-.category-winner strong {
-  flex: 1;
-  min-width: 0;
-}
-.month-bars {
-  padding: 8px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-}
-.month-bars > div {
-  display: grid;
-  grid-template-columns: 84px 1fr 28px;
-  align-items: center;
-  gap: 12px;
-  min-height: 36px;
-  font-size: var(--fs-sm);
-  color: var(--text-2);
-}
-.month-bars > div > div {
-  height: 6px;
-  border-radius: var(--r-pill);
-  background: var(--fill);
-}
-.month-bars i {
-  display: block;
-  height: 100%;
-  min-width: 6px;
-  border-radius: inherit;
-  background: var(--text);
-}
-.month-bars b {
-  text-align: right;
-  font-weight: 600;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-/* 9. Modal i obrasci ------------------------------------------------------- */
+/* 8. Modal i obrasci ------------------------------------------------------- */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -956,8 +828,8 @@ svg {
   background: var(--scrim);
 }
 .sheet {
-  width: min(100%, 640px);
-  max-height: 92dvh;
+  width: min(100%, 600px);
+  max-height: 94dvh;
   display: flex;
   flex-direction: column;
   border-radius: var(--r-xl) var(--r-xl) 0 0;
@@ -968,6 +840,11 @@ svg {
   box-shadow:
     0 0 0 1px var(--line),
     var(--shadow-lg);
+}
+.sheet-grip {
+  flex: none;
+  touch-action: none;
+  cursor: grab;
 }
 .sheet-handle {
   flex: none;
@@ -983,8 +860,7 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 10px 8px var(--gutter);
-  border-bottom: 1px solid var(--line);
+  padding: 6px 10px 6px var(--gutter);
 }
 .sheet-head h2 {
   min-width: 0;
@@ -995,35 +871,29 @@ svg {
   font-weight: 600;
   letter-spacing: -0.02em;
 }
-.icon-button {
-  flex: none;
-  width: 44px;
-  height: 44px;
-  color: var(--text-2);
-}
 .sheet-body {
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--gutter) var(--gutter) calc(var(--gutter) + var(--safe-bottom));
+  padding: 12px var(--gutter) calc(var(--gutter) + var(--safe-bottom));
 }
-:where(.sheet, .auth-content) form {
+:where(.sheet, .auth-card) form {
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
-:where(.sheet, .auth-content) label {
+:where(.sheet, .auth-card) label {
   display: flex;
   flex-direction: column;
   gap: 8px;
   font-size: var(--fs-sm);
   font-weight: 600;
 }
-:where(.sheet, .auth-content)
+:where(.sheet, .auth-card)
   :is(input:not([type="range"], [type="checkbox"], [type="file"]), textarea) {
   width: 100%;
   min-width: 0;
-  min-height: 48px;
-  padding: 12px 14px;
+  min-height: 50px;
+  padding: 12px 16px;
   border: 1px solid var(--field-line);
   border-radius: var(--r-md);
   background: var(--surface);
@@ -1043,13 +913,13 @@ svg {
 .field-icon svg {
   position: absolute;
   top: 50%;
-  left: 14px;
+  left: 16px;
   translate: 0 -50%;
   color: var(--text-3);
   pointer-events: none;
 }
 .field-icon input {
-  padding-left: 44px;
+  padding-left: 46px;
 }
 .field-label {
   display: flex;
@@ -1072,7 +942,7 @@ svg {
   grid-template-columns: 1fr 1fr;
   gap: 4px;
   padding: 4px;
-  border-radius: var(--r-md);
+  border-radius: var(--r-pill);
   background: var(--fill);
 }
 .kind-toggle button {
@@ -1080,8 +950,8 @@ svg {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
-  border-radius: 9px;
+  min-height: 42px;
+  border-radius: var(--r-pill);
   font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-2);
@@ -1133,25 +1003,22 @@ svg {
 }
 .pick-map {
   height: 240px;
-  border-radius: var(--r-md);
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--fill);
 }
 .locate-button {
   align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
-  min-height: 44px;
-  margin-block: -8px;
-  padding: 0 10px 0 2px;
-  border-radius: var(--r-sm);
-  font-size: var(--fs-sm);
+  margin: -8px 0 -8px -10px;
   font-weight: 600;
+  color: var(--text);
 }
 .chosen-address {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: var(--r-md);
   background: var(--fill);
 }
@@ -1211,7 +1078,7 @@ svg {
   color: var(--text-2);
 }
 .form-error {
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-radius: var(--r-md);
   background: var(--danger-fill);
   color: var(--danger);
@@ -1224,7 +1091,7 @@ svg {
   color: var(--text-2);
 }
 .rating-field {
-  padding-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
 .rating-field > div {
@@ -1234,13 +1101,13 @@ svg {
   gap: 12px;
 }
 .rating-field strong {
-  font-size: var(--fs-base);
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 .rating-field span {
-  font-size: var(--fs-lg);
+  font-size: 1.5rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
 .rating-field input[type="range"] {
@@ -1265,17 +1132,35 @@ svg {
   accent-color: var(--accent);
 }
 
-/* 10. Detalji mjesta ------------------------------------------------------- */
-.detail-meta {
+/* 9. Detalji mjesta -------------------------------------------------------- */
+.place-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.place-score strong {
+  font-size: 4.5rem;
+  font-weight: 650;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.place-score span {
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  color: var(--text-3);
+}
+.place-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 10px;
+  margin-top: 16px;
   font-size: var(--fs-sm);
   color: var(--text-2);
 }
-.detail-meta > span:not(.tag) {
-  display: flex;
+.place-meta > span:not(.tag) {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   min-width: 0;
@@ -1288,174 +1173,118 @@ svg {
   font-size: var(--fs-xs);
   font-weight: 600;
 }
-.big-rating {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 18px 0 8px;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-}
-.big-rating > div > span {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
+.place-note {
+  margin-top: 8px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
-.big-rating strong {
-  display: block;
+.score-bars {
+  margin: 22px 0;
+  padding-block: 10px;
+  border-block: 1px solid var(--line);
+}
+.duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.duo > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 14px;
+  border-radius: var(--r-lg);
+  background: var(--fill);
+}
+.duo .mini-avatar {
+  width: 28px;
+  height: 28px;
+  background: var(--surface);
+  font-size: var(--fs-xs);
+}
+.duo-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-2);
+}
+.duo strong {
+  grid-column: 1 / -1;
   margin-top: 6px;
-  font-size: 2.5rem;
-  font-weight: 650;
+  font-size: var(--fs-xl);
+  font-weight: 600;
   letter-spacing: -0.045em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.big-rating strong small {
-  font-size: var(--fs-md);
-  font-weight: 500;
-  letter-spacing: 0;
+.duo small {
+  grid-column: 1 / -1;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
-.big-rating p {
-  margin-top: 8px;
-  font-size: var(--fs-sm);
-  color: var(--text-2);
-}
-.big-rating > svg {
-  color: var(--accent);
-}
-.category-list {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-.category-list > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  font-size: var(--fs-sm);
-  color: var(--text-2);
-}
-.category-list strong {
-  font-weight: 600;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-.people-ratings {
-  margin: 14px 0 18px;
-}
-.people-ratings > div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  font-size: var(--fs-base);
-}
-.people-ratings strong {
-  margin-left: auto;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.mini-avatar {
-  width: 28px;
-  height: 28px;
-  font-size: var(--fs-xs);
-}
-.detail-actions {
-  display: flex;
-  gap: 8px;
-}
-.detail-actions button {
-  flex: 1;
-}
 .detail-heading {
-  margin-top: 32px;
+  margin-top: 36px;
 }
-.detail-visit {
-  margin-top: 8px;
-  padding: 8px 16px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--surface);
+.entry {
+  padding: 18px 0 10px;
+  border-bottom: 1px solid var(--line);
 }
-.detail-visit > div:first-child {
+.entry header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
 }
-.detail-visit strong {
-  font-size: var(--fs-base);
+.entry header strong {
+  font-size: var(--fs-md);
   font-weight: 600;
+  letter-spacing: -0.015em;
 }
-.detail-visit p {
-  margin-top: 4px;
+.entry-score {
+  flex: none;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.entry-score small {
+  font-size: inherit;
+  font-weight: 400;
+  color: var(--text-3);
+}
+.entry p {
+  margin-top: 6px;
   font-size: var(--fs-base);
   line-height: 1.5;
   color: var(--text-2);
 }
-.visit-links {
-  display: flex;
-  gap: 4px;
-  margin-right: -10px;
-}
-.delete-link,
-.place-admin button {
-  min-height: 44px;
-  padding: 0 10px;
-  border-radius: var(--r-sm);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--text-2);
-}
-.visit-links .delete-link:last-child,
-.place-admin button:last-child {
-  color: var(--danger);
-}
-.visit-rating-summary {
+.entry footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 2px;
+  margin: 12px -10px 0 0;
 }
-.visit-rating-summary span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.visit-rating-summary span svg {
-  color: var(--accent);
-}
-.visit-rating-summary button {
+.entry footer .secondary {
   min-height: 40px;
-  padding: 0 14px;
+  margin-right: auto;
+  padding: 0 16px;
   font-size: var(--fs-sm);
-  white-space: nowrap;
 }
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
   margin-top: 14px;
 }
 .photo-thumb {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 .photo-placeholder {
   display: grid;
@@ -1467,85 +1296,56 @@ svg {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 24px;
+  margin-top: 20px;
 }
 .map-attribution {
-  margin-top: 8px;
+  margin-top: 4px;
   text-align: center;
   font-size: var(--fs-xs);
   color: var(--text-3);
 }
 
-/* 11. Prijava -------------------------------------------------------------- */
-.auth-page {
+/* 10. Prijava -------------------------------------------------------------- */
+.auth {
   min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-.auth-art {
-  flex: none;
-  display: flex;
-  align-items: flex-end;
-  min-height: 190px;
-  padding: calc(28px + var(--safe-top)) 24px 28px;
-  background: var(--inverse);
-  color: var(--on-inverse);
-}
-:root[data-theme="dark"] .auth-art {
-  border-bottom: 1px solid var(--line);
-}
-.auth-art-inner {
-  font-size: var(--fs-xl);
-  font-weight: 650;
-  letter-spacing: -0.04em;
-  line-height: 1.08;
-}
-.auth-content {
-  position: relative;
-  width: min(100%, 440px);
-  margin: auto;
-  padding: 28px 24px calc(28px + var(--safe-bottom));
+  display: grid;
+  place-items: center;
+  padding: calc(72px + var(--safe-top)) 24px calc(40px + var(--safe-bottom));
 }
 .auth-theme-toggle {
   position: absolute;
-  top: 22px;
-  right: 14px;
+  top: calc(8px + var(--safe-top));
+  right: 10px;
 }
-.auth-content .brand {
-  margin-bottom: 40px;
+.auth-card {
+  width: min(100%, 380px);
 }
-.auth-content h1 {
-  margin: 10px 0 8px;
-  font-size: 2rem;
+.auth-card h1 {
+  margin-top: 44px;
+  font-size: var(--fs-2xl);
   font-weight: 650;
-  letter-spacing: -0.04em;
-  line-height: 1.08;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
 }
-.auth-content > p {
-  margin-bottom: 28px;
+.lede {
+  margin: 10px 0 32px;
   font-size: var(--fs-base);
   color: var(--text-2);
 }
-.auth-content .primary {
+.auth-card .primary {
   margin-top: 6px;
 }
 .auth-switch {
-  display: block;
-  min-height: 44px;
-  margin: 12px auto 0;
-  padding: 0 12px;
-  border-radius: var(--r-sm);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--text-2);
+  display: flex;
+  margin: 10px auto 0;
 }
 
-/* 12. Obavijesti ----------------------------------------------------------- */
+/* 11. Obavijesti ----------------------------------------------------------- */
 .toast,
 .sync-note {
   position: fixed;
   inset-inline: 0;
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + 14px);
+  bottom: calc(var(--dock-h) + var(--safe-bottom) + 26px);
   z-index: 300;
   display: flex;
   align-items: center;
@@ -1564,7 +1364,7 @@ svg {
   font-weight: 500;
 }
 .toast:has(+ .sync-note) {
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + 62px);
+  bottom: calc(var(--dock-h) + var(--safe-bottom) + 74px);
 }
 .sync-note {
   padding: 9px 14px;
@@ -1574,7 +1374,7 @@ svg {
   font-weight: 500;
 }
 
-/* 13. Leaflet -------------------------------------------------------------- */
+/* 12. Leaflet -------------------------------------------------------------- */
 .leaflet-container {
   font: inherit;
   background: var(--fill);
@@ -1627,59 +1427,48 @@ svg {
   filter: brightness(0.6) saturate(0.6) contrast(1.1);
 }
 
+/* 13. Stanja i širine ------------------------------------------------------ */
 /* Stanja pokazivača: samo boje, neovisno o postavci kretanja */
 @media (hover: hover) {
-  .primary:not(:disabled):hover {
-    background: color-mix(in srgb, var(--ink) 86%, var(--bg));
+  .primary:not(:disabled):hover,
+  .dock-add:hover,
+  .row:hover .row-action {
+    background: color-mix(in srgb, var(--ink) 84%, var(--bg));
   }
-  .hero .primary:hover {
-    background: color-mix(in srgb, var(--on-inverse) 88%, var(--inverse));
-  }
-  :is(.secondary, .kind-icon):hover {
+  :is(.secondary, .chip:not(.active)):hover {
     background: color-mix(in srgb, var(--fill) 80%, var(--text-3));
   }
   :is(
-    .theme-toggle,
-    .avatar,
     .icon-button,
-    .calendar-head button,
+    .avatar,
     .text-button,
+    .link-button,
     .locate-button,
-    .delete-link,
-    .place-admin button,
     .auth-switch,
-    .calendar-grid button:not(.selected)
+    .dock-item:not(.active),
+    .calendar-grid button:not(.selected),
+    button.row,
+    .suggestions button
   ):hover {
     background: var(--fill);
   }
-  :is(.text-button, .auth-switch, .nav-item):hover {
+  :is(.text-button, .auth-switch, .dock-item):hover {
     color: var(--text);
   }
-  :is(.pending-card, .place-card, .chip:not(.active)):hover {
-    border-color: var(--text-3);
+  .todo button.row:hover {
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
   }
-  :is(
-    button.visit-row,
-    .rank-row,
-    button.category-winner,
-    .suggestions button
-  ):hover {
-    background: color-mix(in srgb, var(--fill) 55%, var(--surface));
+  button.row:hover {
+    border-radius: var(--r-md);
   }
   .upload-box:hover {
     background: var(--surface);
   }
 }
-:is(
-  button.visit-row,
-  .rank-row,
-  button.category-winner,
-  .suggestions button
-):active {
+:is(button.row, .suggestions button):active {
   background: var(--fill);
 }
 
-/* Prilagodbe širini zaslona */
 @media (max-width: 359px) {
   :root {
     --gutter: 16px;
@@ -1688,23 +1477,56 @@ svg {
     gap: 0;
     font-size: 0;
   }
-  .hero h1 {
-    font-size: 2rem;
+  .dock-item.active span {
+    display: none;
   }
 }
-@media (min-width: 720px) {
-  .hero {
-    padding: 44px 40px 40px;
+
+/* Širi zasloni: dock postaje bočna traka, modal centrirani dijalog */
+@media (min-width: 960px) {
+  .app {
+    padding-bottom: 64px;
   }
-  .hero h1 {
-    font-size: 3rem;
+  .dock {
+    inset: 50% auto auto 20px;
+    flex-direction: column;
+    margin: 0;
+    translate: 0 -50%;
+  }
+  .dock-item {
+    width: 48px;
+    padding: 0;
+  }
+  .dock-item.active span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .dock-add {
+    margin: 4px 0;
+  }
+  .peek {
+    bottom: 24px;
+  }
+  .peek ~ .toast,
+  .peek ~ .sync-note {
+    bottom: 110px;
+  }
+  .toast,
+  .sync-note {
+    bottom: 24px;
+  }
+  .toast:has(+ .sync-note) {
+    bottom: 72px;
   }
   .modal-backdrop {
     align-items: center;
     padding: 24px;
   }
   .sheet {
-    max-height: min(92dvh, 860px);
+    max-height: min(92dvh, 880px);
     border-radius: var(--r-xl);
   }
   .sheet-handle {
@@ -1713,23 +1535,34 @@ svg {
   .sheet-head {
     padding-top: 12px;
   }
-  .auth-page {
-    flex-direction: row;
+
+  .app:has(.map-screen) {
+    max-width: 1180px;
+    padding-inline: 96px 24px;
   }
-  .auth-art {
-    flex: 1;
-    padding: 48px;
+  .map-screen {
+    display: grid;
+    grid-template-columns: minmax(320px, 380px) 1fr;
+    align-items: start;
+    gap: 28px;
   }
-  .auth-art-inner {
-    font-size: 2.75rem;
+  .map-stage {
+    order: 2;
+    position: sticky;
+    top: 20px;
+    height: calc(100dvh - 96px);
+    overflow: hidden;
+    border-radius: var(--r-xl);
   }
-  .auth-content {
-    flex: none;
-    margin: auto clamp(24px, 6vw, 96px);
+  .map-drawer {
+    margin: 0;
+    padding: 8px 0 0;
+    border-radius: 0;
+    box-shadow: none;
   }
-  :root[data-theme="dark"] .auth-art {
-    border-bottom: 0;
-    border-right: 1px solid var(--line);
+  .map-drawer .chips {
+    margin-inline: 0;
+    padding-inline: 0;
   }
 }
 
@@ -1764,30 +1597,34 @@ svg {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .app-shell main > * {
-    animation: rise-in 420ms var(--ease) backwards;
-    animation-delay: var(--enter-delay, 0ms);
-  }
-  .app-shell main > :nth-child(2) {
-    --enter-delay: 50ms;
-  }
-  .app-shell main > :nth-child(3) {
-    --enter-delay: 100ms;
-  }
-  .app-shell main > :nth-child(n + 4) {
-    --enter-delay: 140ms;
-  }
-  .app-shell main > .map-panel {
-    animation-name: fade-in;
-  }
-  .auth-content {
-    animation: rise-in 480ms var(--ease) backwards;
-  }
-  .modal-backdrop {
-    animation: fade-in 200ms ease backwards;
-  }
-  .sheet {
-    animation: sheet-in 340ms var(--ease) backwards;
+  /* Ulazne animacije samo gdje nema View Transitions (inače ih rade morph prijelazi) */
+  @supports not (view-transition-name: none) {
+    .app main > *,
+    .map-drawer {
+      animation: rise-in 420ms var(--ease) backwards;
+      animation-delay: var(--enter-delay, 0ms);
+    }
+    .app main > :nth-child(2) {
+      --enter-delay: 50ms;
+    }
+    .app main > :nth-child(3) {
+      --enter-delay: 100ms;
+    }
+    .app main > :nth-child(n + 4) {
+      --enter-delay: 140ms;
+    }
+    .app main > .map-screen {
+      animation-name: fade-in;
+    }
+    .auth-card {
+      animation: rise-in 480ms var(--ease) backwards;
+    }
+    .modal-backdrop {
+      animation: fade-in 200ms ease backwards;
+    }
+    .sheet {
+      animation: sheet-in 340ms var(--ease) backwards;
+    }
   }
   .toast,
   .sync-note,
@@ -1795,9 +1632,10 @@ svg {
   .suggestions {
     animation: rise-in 260ms var(--ease) backwards;
   }
-  .month-bars i {
+  .bars i,
+  .score-bars i {
     transform-origin: left center;
-    animation: bar-grow 600ms 160ms var(--ease) backwards;
+    animation: bar-grow 600ms 320ms var(--ease) backwards;
   }
   .pin {
     animation: pin-settle 300ms var(--ease) backwards;
@@ -1805,8 +1643,7 @@ svg {
 
   button,
   .upload-box,
-  .search-line,
-  :where(.sheet, .auth-content) :is(input, textarea) {
+  :where(.sheet, .auth-card) :is(input, textarea) {
     transition:
       background-color 160ms ease,
       border-color 160ms ease,
@@ -1818,15 +1655,113 @@ svg {
     .secondary,
     .chip,
     .icon-button,
-    .theme-toggle,
-    .calendar-head button,
+    .dock-item,
+    .dock-add,
     .calendar-grid button
   ):active {
-    transform: scale(0.96);
+    transform: scale(0.95);
   }
-  :is(.pending-card, .place-card):active {
-    transform: scale(0.985);
+}
+
+/* Morph prijelazi (View Transitions) --------------------------------------- */
+@keyframes fade-out {
+  to {
+    opacity: 0;
   }
+}
+@keyframes page-out {
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--dir, 1) * -28px));
+    filter: blur(6px);
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--dir, 1) * 36px));
+    filter: blur(8px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  main {
+    view-transition-name: page;
+  }
+  .dock-item.active {
+    view-transition-name: dock-pill;
+  }
+  .dock-add,
+  .sheet {
+    view-transition-name: sheet;
+  }
+  .modal-backdrop {
+    view-transition-name: backdrop;
+  }
+  .toast {
+    view-transition-name: toast;
+  }
+  .peek {
+    view-transition-name: peek;
+  }
+  /* Kartica pregleda je polazište ploče dok se ona otvara i zatvara */
+  :root.morph-row .peek {
+    view-transition-name: none;
+  }
+  /* Ime "sheet" smije nositi samo jedan element: ploča, polazni redak ili gumb + */
+  :root:has(.sheet) .dock-add,
+  :root.morph-row .dock-add {
+    view-transition-name: none;
+  }
+  /* Tema se otkriva krugom preko cijele stranice, bez zasebnih slojeva */
+  :root.theme-morph
+    :is(main, .dock-item, .dock-add, .sheet, .modal-backdrop, .toast) {
+    view-transition-name: none;
+  }
+  :root.theme-morph * {
+    transition: none;
+  }
+}
+::view-transition-group(*) {
+  animation-duration: 440ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-old(page) {
+  animation: page-out 200ms ease both;
+}
+::view-transition-new(page) {
+  animation: page-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/* Ploča: oblik se pretapa iz retka ili gumba +, sadržaj se izmjenjuje unutra */
+::view-transition-group(sheet) {
+  overflow: clip;
+  border-radius: 24px;
+  background: var(--bg);
+}
+::view-transition-old(sheet),
+::view-transition-new(sheet) {
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+::view-transition-old(sheet) {
+  animation: fade-out 180ms ease both;
+}
+::view-transition-new(sheet) {
+  animation: fade-in 280ms 100ms ease both;
+}
+::view-transition-new(peek):only-child {
+  animation: rise-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+::view-transition-old(peek):only-child {
+  animation: fade-out 160ms ease both;
+}
+::view-transition-group(dock-pill) {
+  animation-duration: 380ms;
+}
+.theme-morph::view-transition-old(root),
+.theme-morph::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {

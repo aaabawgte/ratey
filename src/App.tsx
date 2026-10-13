@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import L from "leaflet";
 import { registerSW } from "virtual:pwa-register";
 import {
@@ -55,6 +56,92 @@ type LocationSuggestion = {
   lng: number;
 };
 const center: [number, number] = [45.815, 15.982];
+const noPlaces: Place[] = [];
+const tabOrder: Tab[] = ["home", "map", "calendar", "stats"];
+// Zadnji pritisnuti gumb: polazište za morph prijelaze (View Transitions).
+let lastPressed: HTMLElement | null = null;
+let sheetOrigin: HTMLElement | null = null;
+document.addEventListener(
+  "click",
+  (e) => {
+    lastPressed =
+      e.target instanceof Element
+        ? e.target.closest<HTMLElement>("button")
+        : null;
+  },
+  true,
+);
+const reducedMotion = () =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const canMorph = () =>
+  typeof document.startViewTransition === "function" && !reducedMotion();
+// Promjenu stanja izvodi kao prijelaz. "open" širi pritisnuti redak u ploču,
+// "close" je skuplja natrag u isti redak (ili u gumb + ako retka više nema).
+function morph(update: () => void, mode?: "open" | "close") {
+  if (!canMorph()) return update();
+  const root = document.documentElement;
+  const candidate =
+    mode === "open"
+      ? lastPressed?.closest<HTMLElement>(".row, .peek")
+      : mode === "close"
+        ? sheetOrigin
+        : null;
+  const row = candidate?.isConnected ? candidate : null;
+  if (mode === "open") {
+    sheetOrigin = row;
+    if (row) {
+      root.classList.add("morph-row");
+      row.style.viewTransitionName = "sheet";
+    }
+  }
+  const transition = document.startViewTransition(() => {
+    if (mode === "open" && row) row.style.viewTransitionName = "";
+    flushSync(update);
+    if (mode === "close") {
+      sheetOrigin = null;
+      if (row?.isConnected && !document.querySelector(".sheet")) {
+        root.classList.add("morph-row");
+        row.style.viewTransitionName = "sheet";
+      }
+    }
+  });
+  void transition.finished.finally(() => {
+    root.classList.remove("morph-row");
+    if (row) row.style.viewTransitionName = "";
+  });
+}
+// Promjena teme otkriva se krugom iz pritisnutog gumba.
+function themeMorph(update: () => void) {
+  if (!canMorph()) return update();
+  const root = document.documentElement;
+  const rect = lastPressed?.getBoundingClientRect();
+  const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+  const y = rect ? rect.top + rect.height / 2 : 0;
+  const radius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y),
+  );
+  root.classList.add("theme-morph");
+  const transition = document.startViewTransition(() => flushSync(update));
+  void transition.ready
+    .then(() =>
+      root.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${radius}px at ${x}px ${y}px)`,
+          ],
+        },
+        {
+          duration: 560,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+          pseudoElement: "::view-transition-new(root)",
+        },
+      ),
+    )
+    .catch(() => {});
+  void transition.finished.finally(() => root.classList.remove("theme-morph"));
+}
 const kindName = (kind: Place["kind"]) =>
   kind === "restaurant" ? "Restoran" : "Kafić";
 async function preparePhoto(file: File): Promise<Blob> {
@@ -95,16 +182,22 @@ function MapCanvas({
   onSelect,
   pick,
   picked,
+  activeId,
 }: {
   places: Place[];
   token: string;
   onSelect?: (place: Place) => void;
   pick?: (lat: number, lng: number) => void;
   picked?: [number, number];
+  activeId?: string;
 }) {
   const node = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
+  const select = useRef(onSelect);
+  useEffect(() => {
+    select.current = onSelect;
+  });
   useEffect(() => {
     if (!node.current || map.current) return;
     const instance = L.map(node.current, { zoomControl: false }).setView(
@@ -148,8 +241,9 @@ function MapCanvas({
     L.control.zoom({ position: "bottomright" }).addTo(instance);
     layer.current = L.layerGroup().addTo(instance);
     map.current = instance;
-    setTimeout(() => instance.invalidateSize(), 100);
+    const resize = setTimeout(() => instance.invalidateSize(), 100);
     return () => {
+      clearTimeout(resize);
       instance.remove();
       map.current = null;
       layer.current = null;
@@ -163,6 +257,7 @@ function MapCanvas({
     places.forEach((place, index) => {
       const marker = document.createElement("div");
       marker.className = "pin-marker";
+      marker.dataset.id = place.id;
       const symbol = document.createElement("span");
       symbol.className = `pin ${place.kind}`;
       const label = document.createElement("span");
@@ -193,7 +288,10 @@ function MapCanvas({
       L.marker([place.lat, place.lng], { icon })
         .bindTooltip(tooltip)
         .addTo(group)
-        .on("click", () => onSelect?.(place));
+        .on("click", () => {
+          instance.panTo([place.lat, place.lng]);
+          select.current?.(place);
+        });
     });
     if (picked)
       L.marker(picked, {
@@ -210,7 +308,14 @@ function MapCanvas({
         L.latLngBounds(places.map((p) => [p.lat, p.lng] as [number, number])),
         { padding: [35, 35], maxZoom: 13 },
       );
-  }, [places, picked, onSelect]);
+  }, [places, picked]);
+  useEffect(() => {
+    node.current
+      ?.querySelectorAll<HTMLElement>(".pin-marker")
+      .forEach((el) =>
+        el.classList.toggle("active", el.dataset.id === activeId),
+      );
+  }, [activeId, places]);
   useEffect(() => {
     const instance = map.current;
     if (!instance || !pick) return;
@@ -314,7 +419,10 @@ function App() {
   const toggleTheme = () => {
     const next = dark ? "light" : "dark";
     localStorage.setItem("ratey_theme", next);
-    setThemeChoice(next);
+    themeMorph(() => {
+      document.documentElement.dataset.theme = next;
+      setThemeChoice(next);
+    });
   };
   const [notice, setNotice] = useState("");
   const [offline, setOffline] = useState(!navigator.onLine);
@@ -440,21 +548,42 @@ function App() {
     (v) =>
       !data.ratings.some((r) => r.visit_id === v.id && r.user_id === user?.id),
   );
-  const filtered = data.places.filter(
-    (p) =>
-      (filter === "all" || p.kind === filter) &&
-      `${p.name} ${p.city}`.toLowerCase().includes(search.toLowerCase()),
+  const filtered = useMemo(
+    () =>
+      data.places.filter(
+        (p) =>
+          (filter === "all" || p.kind === filter) &&
+          `${p.name} ${p.city}`.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [data.places, filter, search],
   );
-  const openPlace = (p: Place) => {
-    setSelected(p);
-    setRatingVisit(null);
-    setScreen(null);
-  };
-  const close = () => {
-    setSelected(null);
-    setScreen(null);
-    setEditingVisit(null);
-    setRatingVisit(null);
+  const [peekId, setPeekId] = useState<string | null>(null);
+  const peek = filtered.find((p) => p.id === peekId);
+  const openPlace = (p: Place) =>
+    morph(() => {
+      setSelected(p);
+      setRatingVisit(null);
+      setScreen(null);
+    }, "open");
+  const close = () =>
+    morph(() => {
+      setSelected(null);
+      setScreen(null);
+      setEditingVisit(null);
+      setRatingVisit(null);
+    }, "close");
+  const goTab = (next: Tab) => {
+    document.documentElement.style.setProperty(
+      "--dir",
+      tabOrder.indexOf(next) < tabOrder.indexOf(tab) ? "-1" : "1",
+    );
+    morph(() => {
+      setPeekId(null);
+      setTab(next);
+      setSelected(null);
+      setScreen(null);
+      setRatingVisit(null);
+    });
   };
   const saved = async (message = "Spremljeno!") => {
     if (navigator.onLine) await refresh();
@@ -503,32 +632,31 @@ function App() {
       />
     );
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark">
-            r<span>.</span>
-          </span>
-          <div>
-            <strong>ratey</strong>
-            <small>naša mjesta</small>
-          </div>
-        </div>
-        <div className="top-actions">
+    <div className="app">
+      <header className="masthead">
+        <span className="wordmark">
+          ratey<i>.</i>
+        </span>
+        <div className="masthead-actions">
           {offline && (
             <span className="offline-pill">
               <WifiOff size={14} /> Offline
             </span>
           )}
           <button
-            className="theme-toggle"
+            className="icon-button"
             onClick={toggleTheme}
             aria-label={dark ? "Uključi svijetli način" : "Uključi tamni način"}
             title={dark ? "Svijetli način" : "Tamni način"}
           >
             {dark ? <Sun size={19} /> : <Moon size={19} />}
           </button>
-          <button className="avatar" onClick={logout} title="Odjavi se">
+          <button
+            className="avatar"
+            onClick={logout}
+            title="Odjavi se"
+            aria-label="Odjavi se"
+          >
             <span>{user.name.slice(0, 1).toUpperCase()}</span>
             <LogOut size={15} />
           </button>
@@ -537,43 +665,52 @@ function App() {
       <main>
         {tab === "home" && (
           <>
-            <section className="hero">
-              <div className="eyebrow">VAŠ MALI VODIČ</div>
-              <h1>
-                Mjesta koja
-                <br />
-                <em>ostaju u priči.</em>
-              </h1>
-              <p>
-                Svaki izlazak, svaka ocjena i svaki pin — sve na jednom mjestu.
+            <section className="intro">
+              <p className="kicker">
+                {new Intl.DateTimeFormat("hr-HR", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  timeZone: "UTC",
+                }).format(new Date(`${today()}T12:00:00Z`))}
               </p>
-              <button className="primary" onClick={() => setScreen("place")}>
-                <Plus size={19} /> Dodaj novo mjesto
-              </button>
+              <h1>
+                Bok, {user.name}
+                <span className="dot">.</span>
+              </h1>
             </section>
-            <section className="quick-stats">
+            <dl className="figures">
               <div>
-                <strong>{data.places.length}</strong>
-                <span>mjesta</span>
+                <dt>mjesta</dt>
+                <dd>
+                  <CountUp value={data.places.length} />
+                </dd>
               </div>
               <div>
-                <strong>{data.visits.length}</strong>
-                <span>posjeta</span>
+                <dt>posjeta</dt>
+                <dd>
+                  <CountUp value={data.visits.length} />
+                </dd>
               </div>
               <div>
-                <strong>
-                  {new Set(data.places.map((p) => p.city).filter(Boolean)).size}
-                </strong>
-                <span>gradova</span>
+                <dt>gradova</dt>
+                <dd>
+                  <CountUp
+                    value={
+                      new Set(data.places.map((p) => p.city).filter(Boolean))
+                        .size
+                    }
+                  />
+                </dd>
               </div>
-            </section>
+            </dl>
             {pending.length > 0 && (
-              <section className="section">
+              <section className="section todo">
                 <div className="section-heading">
                   <h2>Čekaju tvoju ocjenu</h2>
                   <span className="count">{pending.length}</span>
                 </div>
-                <div className="horizontal-list">
+                <div className="rows">
                   {pending.map((v) => {
                     const p = data.places.find(
                       (place) => place.id === v.place_id,
@@ -581,25 +718,21 @@ function App() {
                     return p ? (
                       <button
                         key={v.id}
-                        className="pending-card"
-                        onClick={() => {
-                          setSelected(p);
-                          setRatingVisit(v);
-                          setScreen("rating");
-                        }}
+                        className="row"
+                        onClick={() =>
+                          morph(() => {
+                            setSelected(p);
+                            setRatingVisit(v);
+                            setScreen("rating");
+                          }, "open")
+                        }
                       >
-                        <span className="kind-icon">
-                          {p.kind === "restaurant" ? (
-                            <Utensils size={19} />
-                          ) : (
-                            <Coffee size={19} />
-                          )}
+                        <KindIcon kind={p.kind} />
+                        <span className="row-main">
+                          <strong>{p.name}</strong>
+                          <small>{prettyDate(v.visited_at)}</small>
                         </span>
-                        <strong>{p.name}</strong>
-                        <small>{prettyDate(v.visited_at)}</small>
-                        <span className="rate-link">
-                          Ocijeni <ChevronRight size={15} />
-                        </span>
+                        <span className="row-action">Ocijeni</span>
                       </button>
                     ) : null;
                   })}
@@ -611,35 +744,28 @@ function App() {
                 <h2>Zadnji posjeti</h2>
                 <button
                   className="text-button"
-                  onClick={() => setTab("calendar")}
+                  onClick={() => goTab("calendar")}
                 >
                   Vidi sve <ChevronRight size={16} />
                 </button>
               </div>
               {data.visits.length ? (
-                <div className="visit-list">
+                <div className="rows">
                   {data.visits.slice(0, 5).map((v) => {
                     const p = data.places.find((x) => x.id === v.place_id);
                     return p ? (
                       <button
-                        className="visit-row"
+                        className="row"
                         key={v.id}
                         onClick={() => openPlace(p)}
                       >
-                        <span className="date-badge">
-                          <strong>{v.visited_at.slice(8, 10)}</strong>
-                          <small>
-                            {new Intl.DateTimeFormat("hr-HR", {
-                              month: "short",
-                            }).format(new Date(v.visited_at))}
-                          </small>
-                        </span>
-                        <span className="visit-info">
+                        <DateLead day={v.visited_at} />
+                        <span className="row-main">
                           <strong>{p.name}</strong>
                           <small>{p.city || kindName(p.kind)}</small>
                         </span>
-                        <span className="score-mini">
-                          <Star size={14} fill="currentColor" />
+                        <span className="row-trail score">
+                          <Star size={13} fill="currentColor" />
                           {formatScore(placeAverage(visitRatingsFor(v.id)))}
                         </span>
                       </button>
@@ -647,65 +773,76 @@ function App() {
                   })}
                 </div>
               ) : (
-                <Empty text="Još nema posjeta. Krenite s prvim mjestom!" />
+                <Empty text="Još nema posjeta. Dodaj prvo mjesto gumbom + dolje." />
               )}
             </section>
           </>
         )}
         {tab === "map" && (
-          <>
-            <div className="page-title">
-              <span className="eyebrow">SVI VAŠI PINOVI</span>
-              <h1>
-                Karta izlazaka<span className="dot">.</span>
-              </h1>
-              <p>{data.places.length} mjesta na vašoj karti</p>
-            </div>
-            <div className="map-panel">
-              <MapCanvas places={filtered} token={token} onSelect={openPlace} />
-            </div>
-            <div className="search-line">
-              <Search size={18} />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Traži mjesto ili grad..."
+          <div className="map-screen">
+            <div className="map-stage">
+              <MapCanvas
+                places={filtered}
+                token={token}
+                onSelect={(p) => morph(() => setPeekId(p.id))}
+                pick={peek ? () => morph(() => setPeekId(null)) : undefined}
+                activeId={peek?.id}
               />
             </div>
-            <div className="chips">
-              {(["all", "restaurant", "cafe"] as const).map((k) => (
-                <button
-                  className={filter === k ? "chip active" : "chip"}
-                  onClick={() => setFilter(k)}
-                  key={k}
-                >
-                  {k === "all"
-                    ? "Sve"
-                    : k === "restaurant"
-                      ? "Restorani"
-                      : "Kafići"}
-                </button>
-              ))}
-            </div>
-            <div className="place-list">
-              {filtered.map((p) => (
-                <PlaceCard
-                  key={p.id}
-                  place={p}
-                  ratings={ratingsFor(p.id)}
-                  visits={visitsFor(p.id)}
-                  onClick={() => openPlace(p)}
+            <div className="map-drawer">
+              <div className="drawer-head">
+                <h1>
+                  Karta<span className="dot">.</span>
+                </h1>
+                <span className="count">{filtered.length}</span>
+              </div>
+              <div className="search-line">
+                <Search size={18} />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Traži mjesto ili grad..."
+                  aria-label="Traži mjesto ili grad"
                 />
-              ))}
+              </div>
+              <div className="chips">
+                {(["all", "restaurant", "cafe"] as const).map((k) => (
+                  <button
+                    className={filter === k ? "chip active" : "chip"}
+                    onClick={() => setFilter(k)}
+                    key={k}
+                  >
+                    {k === "all"
+                      ? "Sve"
+                      : k === "restaurant"
+                        ? "Restorani"
+                        : "Kafići"}
+                  </button>
+                ))}
+              </div>
+              {filtered.length ? (
+                <div className="rows">
+                  {filtered.map((p) => (
+                    <PlaceRow
+                      key={p.id}
+                      place={p}
+                      ratings={ratingsFor(p.id)}
+                      visits={visitsFor(p.id)}
+                      onClick={() => openPlace(p)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Empty text="Nema mjesta za ovu pretragu." />
+              )}
             </div>
-          </>
+          </div>
         )}
         {tab === "calendar" && (
           <>
             <div className="page-title">
-              <span className="eyebrow">KAD SMO BILI?</span>
               <h1>
-                Naš kalendar<span className="dot">.</span>
+                Kalendar<span className="dot">.</span>
               </h1>
               <p>Svaki datum ima svoju priču.</p>
             </div>
@@ -719,29 +856,45 @@ function App() {
         )}
         {tab === "stats" && <Stats data={data} openPlace={openPlace} />}
       </main>
-      <nav className="bottom-nav" aria-label="Glavni izbornik">
+      <nav className="dock" aria-label="Glavni izbornik">
         {(
           [
             ["home", House, "Početna"],
             ["map", MapPin, "Karta"],
+            ["add", Plus, "Dodaj novo mjesto"],
             ["calendar", CalendarDays, "Kalendar"],
             ["stats", ChartNoAxesColumn, "Statistika"],
           ] as const
-        ).map(([key, Icon, label]) => (
-          <button
-            className={tab === key ? "nav-item active" : "nav-item"}
-            key={key}
-            onClick={() => {
-              setTab(key);
-              setSelected(null);
-              setScreen(null);
-              setRatingVisit(null);
-            }}
-          >
-            <Icon size={22} strokeWidth={tab === key ? 2.5 : 1.8} />
-            <span>{label}</span>
-          </button>
-        ))}
+        ).map(([key, Icon, label]) =>
+          key === "add" ? (
+            <button
+              className="dock-add"
+              key={key}
+              aria-label={label}
+              title={label}
+              onClick={() =>
+                morph(() => {
+                  setSelected(null);
+                  setRatingVisit(null);
+                  setScreen("place");
+                })
+              }
+            >
+              <Icon size={22} />
+            </button>
+          ) : (
+            <button
+              className={tab === key ? "dock-item active" : "dock-item"}
+              key={key}
+              title={label}
+              aria-current={tab === key ? "page" : undefined}
+              onClick={() => goTab(key)}
+            >
+              <Icon size={21} strokeWidth={tab === key ? 2.3 : 1.8} />
+              <span>{label}</span>
+            </button>
+          ),
+        )}
       </nav>
       {screen === "place" && (
         <PlaceForm
@@ -755,10 +908,12 @@ function App() {
                   localStorage.getItem("ratey_data") || "{}",
                 ) as Data);
             const p = all.places.find((p) => p.id === id);
-            if (p) {
-              setSelected(p);
-              setScreen("visit");
-            } else close();
+            if (p)
+              morph(() => {
+                setSelected(p);
+                setScreen("visit");
+              });
+            else close();
           }}
           token={token}
         />
@@ -768,7 +923,7 @@ function App() {
           place={selected}
           user={user}
           token={token}
-          onClose={() => setScreen(null)}
+          onClose={() => morph(() => setScreen(null))}
           onSaved={async (id) => {
             await saved("Mjesto ažurirano");
             const p = (
@@ -778,8 +933,10 @@ function App() {
                     localStorage.getItem("ratey_data") || "{}",
                   ) as Data)
             ).places.find((p) => p.id === id);
-            if (p) setSelected(p);
-            setScreen(null);
+            morph(() => {
+              if (p) setSelected(p);
+              setScreen(null);
+            });
           }}
         />
       )}
@@ -790,23 +947,29 @@ function App() {
           token={token}
           user={user}
           onClose={close}
-          onEditPlace={() => setScreen("editPlace")}
+          onEditPlace={() => morph(() => setScreen("editPlace"))}
           onDeletePlace={async () => {
             await saved("Mjesto obrisano");
             close();
           }}
-          onVisit={() => {
-            setEditingVisit(null);
-            setScreen("visit");
-          }}
-          onEditVisit={(v) => {
-            setEditingVisit(v);
-            setScreen("visit");
-          }}
-          onRate={(v) => {
-            setRatingVisit(v);
-            setScreen("rating");
-          }}
+          onVisit={() =>
+            morph(() => {
+              setEditingVisit(null);
+              setScreen("visit");
+            })
+          }
+          onEditVisit={(v) =>
+            morph(() => {
+              setEditingVisit(v);
+              setScreen("visit");
+            })
+          }
+          onRate={(v) =>
+            morph(() => {
+              setRatingVisit(v);
+              setScreen("rating");
+            })
+          }
           onRefresh={saved}
         />
       )}
@@ -816,15 +979,19 @@ function App() {
           user={user}
           token={token}
           visit={editingVisit}
-          onClose={() => {
-            setScreen(null);
-            setEditingVisit(null);
-          }}
+          onClose={() =>
+            morph(() => {
+              setScreen(null);
+              setEditingVisit(null);
+            })
+          }
           onSaved={async (v, isNew) => {
             await saved("Posjet spremljen!");
-            setRatingVisit(isNew ? v : null);
-            setScreen(isNew ? "rating" : null);
-            setEditingVisit(null);
+            morph(() => {
+              setRatingVisit(isNew ? v : null);
+              setScreen(isNew ? "rating" : null);
+              setEditingVisit(null);
+            });
           }}
         />
       )}
@@ -836,16 +1003,45 @@ function App() {
           current={data.ratings.find(
             (r) => r.visit_id === ratingVisit.id && r.user_id === user.id,
           )}
-          onClose={() => {
-            setScreen(null);
-            setRatingVisit(null);
-          }}
+          onClose={() =>
+            morph(() => {
+              setScreen(null);
+              setRatingVisit(null);
+            })
+          }
           onSaved={async () => {
             await saved("Ocjena spremljena!");
-            setScreen(null);
-            setRatingVisit(null);
+            morph(() => {
+              setScreen(null);
+              setRatingVisit(null);
+            });
           }}
         />
+      )}
+      {tab === "map" && peek && (
+        <div className="peek">
+          <button className="peek-main" onClick={() => openPlace(peek)}>
+            <KindIcon kind={peek.kind} />
+            <span className="row-main">
+              <strong>{peek.name}</strong>
+              <small>
+                {peek.city || peek.address || kindName(peek.kind)} ·{" "}
+                {visitsFor(peek.id).length} posjet(a)
+              </small>
+            </span>
+            <span className="row-trail score">
+              <Star size={13} fill="currentColor" />
+              {formatScore(placeAverage(ratingsFor(peek.id)))}
+            </span>
+          </button>
+          <button
+            className="icon-button"
+            aria-label="Zatvori pregled"
+            onClick={() => morph(() => setPeekId(null))}
+          >
+            <X size={18} />
+          </button>
+        </div>
       )}
       {notice && (
         <div className="toast">
@@ -896,37 +1092,23 @@ function Login({
     }
   };
   return (
-    <div className="auth-page">
-      <div className="auth-art">
-        <div className="auth-art-inner">
-          Naša mala
-          <br />
-          velika mjesta.
-        </div>
-      </div>
-      <div className="auth-content">
-        <button
-          className="theme-toggle auth-theme-toggle"
-          onClick={onToggleTheme}
-          aria-label={dark ? "Uključi svijetli način" : "Uključi tamni način"}
-          title={dark ? "Svijetli način" : "Tamni način"}
-        >
-          {dark ? <Sun size={19} /> : <Moon size={19} />}
-        </button>
-        <div className="brand">
-          <span className="brand-mark">
-            r<span>.</span>
-          </span>
-          <div>
-            <strong>ratey</strong>
-            <small>naša mjesta</small>
-          </div>
-        </div>
-        <span className="eyebrow">DOBRO DOŠLI</span>
+    <div className="auth">
+      <button
+        className="icon-button auth-theme-toggle"
+        onClick={onToggleTheme}
+        aria-label={dark ? "Uključi svijetli način" : "Uključi tamni način"}
+        title={dark ? "Svijetli način" : "Tamni način"}
+      >
+        {dark ? <Sun size={19} /> : <Moon size={19} />}
+      </button>
+      <div className="auth-card">
+        <span className="wordmark wordmark-lg">
+          ratey<i>.</i>
+        </span>
         <h1>
           {register ? "Kreiraj svoj račun." : "Nastavimo tamo gdje smo stali."}
         </h1>
-        <p>Vaša privatna karta izlazaka čeka.</p>
+        <p className="lede">Vaša privatna karta izlazaka čeka.</p>
         <form onSubmit={submit}>
           <label>
             Ime
@@ -989,7 +1171,47 @@ function Empty({ text }: { text: string }) {
     </div>
   );
 }
-function PlaceCard({
+function KindIcon({ kind }: { kind: Place["kind"] }) {
+  return (
+    <span className="row-lead kind-icon">
+      {kind === "restaurant" ? <Utensils size={18} /> : <Coffee size={18} />}
+    </span>
+  );
+}
+function DateLead({ day }: { day: string }) {
+  return (
+    <span className="row-lead date-lead">
+      <strong>{day.slice(8, 10)}</strong>
+      <small>
+        {new Intl.DateTimeFormat("hr-HR", { month: "short" }).format(
+          new Date(day),
+        )}
+      </small>
+    </span>
+  );
+}
+function Bars({ items }: { items: [string, number][] }) {
+  const max = Math.max(...items.map((x) => x[1]));
+  return (
+    <div className="bars">
+      {items.map(([key, value]) => (
+        <div key={key}>
+          <span>
+            {new Intl.DateTimeFormat("hr-HR", {
+              month: "short",
+              year: "numeric",
+            }).format(new Date(`${key}-01`))}
+          </span>
+          <div>
+            <i style={{ width: `${(value / max) * 100}%` }} />
+          </div>
+          <b>{value}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+function PlaceRow({
   place,
   ratings,
   visits,
@@ -1001,30 +1223,48 @@ function PlaceCard({
   onClick: () => void;
 }) {
   return (
-    <button className="place-card" onClick={onClick}>
-      <span className="kind-icon">
-        {place.kind === "restaurant" ? (
-          <Utensils size={19} />
-        ) : (
-          <Coffee size={19} />
-        )}
-      </span>
-      <span className="place-card-text">
+    <button className="row" onClick={onClick}>
+      <KindIcon kind={place.kind} />
+      <span className="row-main">
         <strong>{place.name}</strong>
         <small>
-          <MapPin size={13} />
-          <span>
-            {place.city || place.address || kindName(place.kind)} ·{" "}
-            {visits.length} posjet(a)
-          </span>
+          {place.city || place.address || kindName(place.kind)} ·{" "}
+          {visits.length} posjet(a)
         </small>
       </span>
-      <span className="score-pill">
-        <Star size={14} fill="currentColor" />
+      <span className="row-trail score">
+        <Star size={13} fill="currentColor" />
         {formatScore(placeAverage(ratings))}
       </span>
     </button>
   );
+}
+// Broj se odbrojava do vrijednosti nakon što završi ulazni prijelaz.
+function CountUp({ value, score }: { value: number | null; score?: boolean }) {
+  const [shown, setShown] = useState(0);
+  const from = useRef(0);
+  useEffect(() => {
+    if (value === null || reducedMotion()) return;
+    const begin = performance.now() + 320;
+    const start = from.current;
+    let frame = requestAnimationFrame(function tick(now) {
+      const t = Math.min(1, Math.max(0, (now - begin) / 750));
+      const current = start + (value - start) * (1 - Math.pow(1 - t, 4));
+      from.current = current;
+      setShown(t === 1 ? value : current);
+      if (t < 1) frame = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  if (value === null) return "—";
+  const n = reducedMotion() ? value : shown;
+  if (!score) return Math.round(n);
+  return n === value
+    ? formatScore(value)
+    : n.toLocaleString("hr-HR", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
 }
 function Modal({
   title,
@@ -1035,6 +1275,27 @@ function Modal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const sheet = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y: number; time: number } | null>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  // Povlačenje zaglavlja prema dolje zatvara ploču.
+  const endDrag = (e: React.PointerEvent) => {
+    const start = drag.current;
+    const el = sheet.current;
+    drag.current = null;
+    if (!start || !el) return;
+    const distance = Math.max(0, e.clientY - start.y);
+    const speed = distance / Math.max(1, e.timeStamp - start.time);
+    if (distance > 110 || (distance > 30 && speed > 0.6)) return onClose();
+    el.style.transition = "transform 280ms cubic-bezier(0.22, 1, 0.36, 1)";
+    el.style.transform = "";
+  };
   return (
     <div
       className="modal-backdrop"
@@ -1042,17 +1303,40 @@ function Modal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="sheet-handle" />
-        <div className="sheet-head">
-          <h2>{title}</h2>
-          <button
-            className="icon-button"
-            onClick={onClose}
-            aria-label="Zatvori"
-          >
-            <X size={22} />
-          </button>
+      <div
+        ref={sheet}
+        className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div
+          className="sheet-grip"
+          onPointerDown={(e) => {
+            if ((e.target as Element).closest("button") || !sheet.current)
+              return;
+            drag.current = { y: e.clientY, time: e.timeStamp };
+            e.currentTarget.setPointerCapture(e.pointerId);
+            sheet.current.style.transition = "none";
+          }}
+          onPointerMove={(e) => {
+            if (drag.current && sheet.current)
+              sheet.current.style.transform = `translateY(${Math.max(0, e.clientY - drag.current.y)}px)`;
+          }}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
+          <div className="sheet-handle" />
+          <div className="sheet-head">
+            <h2>{title}</h2>
+            <button
+              className="icon-button"
+              onClick={onClose}
+              aria-label="Zatvori"
+            >
+              <X size={22} />
+            </button>
+          </div>
         </div>
         <div className="sheet-body">{children}</div>
       </div>
@@ -1280,7 +1564,7 @@ function PlaceForm({
         )}
         <div className="pick-map">
           <MapCanvas
-            places={[]}
+            places={noPlaces}
             token={token}
             picked={coords || undefined}
             pick={pickLocation}
@@ -1649,37 +1933,41 @@ function PlaceDetail({
   };
   return (
     <Modal title={place.name} onClose={onClose}>
-      <div className="detail-meta">
-        <span className="tag">{kindName(place.kind)}</span>
-        <span>
-          <MapPin size={15} />
-          {place.address || place.city || "Lokacija na karti"}
-        </span>
-      </div>
-      <div className="big-rating">
-        <div>
-          <span>ZAJEDNIČKA OCJENA</span>
+      <div className="place-hero">
+        <div className="place-score">
           <strong>
-            {formatScore(placeAverage(ratings))}
-            <small> / 10</small>
+            <CountUp value={placeAverage(ratings)} score />
           </strong>
-          <p>
-            {ratings.length
-              ? `${ratings.length} ocjena kroz ${new Set(ratings.map((r) => r.visit_id)).size} posjeta`
-              : "Još nema ocjena"}
-          </p>
+          <span>/ 10</span>
         </div>
-        <Star size={34} fill="currentColor" />
+        <div className="place-meta">
+          <span className="tag">{kindName(place.kind)}</span>
+          <span>
+            <MapPin size={14} />
+            {place.address || place.city || "Lokacija na karti"}
+          </span>
+        </div>
+        <p className="place-note">
+          {ratings.length
+            ? `${ratings.length} ocjena kroz ${new Set(ratings.map((r) => r.visit_id)).size} posjeta`
+            : "Još nema ocjena"}
+        </p>
       </div>
-      <div className="category-list">
-        {categories.map(([key, label]) => (
-          <div key={key}>
-            <span>{label}</span>
-            <strong>{formatScore(ratingAverage(ratings, key))}</strong>
-          </div>
-        ))}
+      <div className="score-bars">
+        {categories.map(([key, label]) => {
+          const value = ratingAverage(ratings, key);
+          return (
+            <div key={key}>
+              <span>{label}</span>
+              <div>
+                <i style={{ width: `${(value ?? 0) * 10}%` }} />
+              </div>
+              <b>{formatScore(value)}</b>
+            </div>
+          );
+        })}
       </div>
-      <div className="people-ratings">
+      <div className="duo">
         {data.users.map((u) => {
           const personRatings = ratings.filter((x) => x.user_id === u.id);
           return (
@@ -1687,64 +1975,44 @@ function PlaceDetail({
               <span className="mini-avatar">
                 {u.name.slice(0, 1).toUpperCase()}
               </span>
-              <span>{u.name}</span>
+              <span className="duo-name">{u.name}</span>
               <strong>
                 {personRatings.length
                   ? formatScore(placeAverage(personRatings))
-                  : "Čeka ocjenu"}
+                  : "—"}
               </strong>
+              {!personRatings.length && <small>Čeka ocjenu</small>}
             </div>
           );
         })}
       </div>
-      <div className="detail-actions">
-        <button className="primary" onClick={onVisit}>
-          <Plus size={18} /> Novi posjet
-        </button>
-      </div>
+      <button className="primary full" onClick={onVisit}>
+        <Plus size={18} /> Novi posjet
+      </button>
       <div className="section-heading detail-heading">
         <h3>Vaši posjeti</h3>
         <span className="count">{visits.length}</span>
       </div>
       {visits.length ? (
-        visits.map((v) => {
-          const visitRatings = ratings.filter((r) => r.visit_id === v.id);
-          const mine = visitRatings.some((r) => r.user_id === user.id);
-          return (
-            <div className="detail-visit" key={v.id}>
-              <div>
-                <strong>{prettyDate(v.visited_at)}</strong>
-                <div className="visit-links">
-                  <button
-                    className="delete-link"
-                    onClick={() => onEditVisit(v)}
-                  >
-                    Uredi
-                  </button>
-                  <button
-                    className="delete-link"
-                    onClick={() => void removeVisit(v)}
-                  >
-                    Obriši
-                  </button>
-                </div>
-              </div>
-              {v.note && <p>{v.note}</p>}
-              <div className="visit-rating-summary">
-                <span>
-                  <Star size={14} fill="currentColor" />{" "}
-                  {formatScore(placeAverage(visitRatings))} / 10 ·{" "}
-                  {visitRatings.length}/2 ocjene
-                </span>
-                <button className="secondary" onClick={() => onRate(v)}>
-                  {mine ? "Uredi moju ocjenu" : "Ocijeni posjet"}
-                </button>
-              </div>
-              {data.photos.some((p) => p.visit_id === v.id) && (
-                <div className="photo-grid">
-                  {data.photos
-                    .filter((p) => p.visit_id === v.id)
-                    .map((p) => (
+        <div className="entries">
+          {visits.map((v) => {
+            const visitRatings = ratings.filter((r) => r.visit_id === v.id);
+            const mine = visitRatings.some((r) => r.user_id === user.id);
+            const photos = data.photos.filter((p) => p.visit_id === v.id);
+            return (
+              <article className="entry" key={v.id}>
+                <header>
+                  <strong>{prettyDate(v.visited_at)}</strong>
+                  <span className="entry-score">
+                    <Star size={13} fill="currentColor" />
+                    {formatScore(placeAverage(visitRatings))}
+                    <small>· {visitRatings.length}/2 ocjene</small>
+                  </span>
+                </header>
+                {v.note && <p>{v.note}</p>}
+                {photos.length > 0 && (
+                  <div className="photo-grid">
+                    {photos.map((p) => (
                       <PhotoThumb
                         key={p.id}
                         id={p.id}
@@ -1752,18 +2020,43 @@ function PlaceDetail({
                         className="photo-thumb"
                       />
                     ))}
-                </div>
-              )}
-            </div>
-          );
-        })
+                  </div>
+                )}
+                <footer>
+                  <button className="secondary" onClick={() => onRate(v)}>
+                    {mine ? "Uredi moju ocjenu" : "Ocijeni posjet"}
+                  </button>
+                  <button
+                    className="link-button"
+                    onClick={() => onEditVisit(v)}
+                  >
+                    Uredi
+                  </button>
+                  <button
+                    className="link-button danger"
+                    onClick={() => void removeVisit(v)}
+                  >
+                    Obriši
+                  </button>
+                </footer>
+              </article>
+            );
+          })}
+        </div>
       ) : (
         <Empty text="Još nema zabilježenih posjeta." />
       )}
       {error && <div className="form-error">{error}</div>}
       <div className="place-admin">
-        <button onClick={onEditPlace}>Uredi mjesto</button>
-        <button onClick={() => void removePlace()}>Obriši mjesto</button>
+        <button className="link-button" onClick={onEditPlace}>
+          Uredi mjesto
+        </button>
+        <button
+          className="link-button danger"
+          onClick={() => void removePlace()}
+        >
+          Obriši mjesto
+        </button>
       </div>
       <div className="map-attribution">
         Podaci o lokacijama:{" "}
@@ -1807,26 +2100,30 @@ function CalendarView({
   const visits = data.visits.filter((v) => v.visited_at === day);
   return (
     <>
-      <div className="calendar-card">
+      <div className="calendar">
         <div className="calendar-head">
-          <button
-            onClick={() => setMonth(new Date(year, m - 1, 1))}
-            aria-label="Prethodni mjesec"
-          >
-            <ChevronLeft />
-          </button>
           <strong>
             {new Intl.DateTimeFormat("hr-HR", {
               month: "long",
               year: "numeric",
             }).format(month)}
           </strong>
-          <button
-            onClick={() => setMonth(new Date(year, m + 1, 1))}
-            aria-label="Sljedeći mjesec"
-          >
-            <ChevronRight />
-          </button>
+          <div>
+            <button
+              className="icon-button"
+              onClick={() => setMonth(new Date(year, m - 1, 1))}
+              aria-label="Prethodni mjesec"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <button
+              className="icon-button"
+              onClick={() => setMonth(new Date(year, m + 1, 1))}
+              aria-label="Sljedeći mjesec"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
         </div>
         <div className="calendar-grid">
           {["Pon", "Uto", "Sri", "Čet", "Pet", "Sub", "Ned"].map((d) => (
@@ -1855,27 +2152,17 @@ function CalendarView({
           <span className="count">{visits.length}</span>
         </div>
         {visits.length ? (
-          <div className="visit-list">
+          <div className="rows">
             {visits.map((v) => {
               const p = data.places.find((x) => x.id === v.place_id);
               return p ? (
-                <button
-                  className="visit-row"
-                  key={v.id}
-                  onClick={() => openPlace(p)}
-                >
-                  <span className="kind-icon">
-                    {p.kind === "restaurant" ? (
-                      <Utensils size={19} />
-                    ) : (
-                      <Coffee size={19} />
-                    )}
-                  </span>
-                  <span className="visit-info">
+                <button className="row" key={v.id} onClick={() => openPlace(p)}>
+                  <KindIcon kind={p.kind} />
+                  <span className="row-main">
                     <strong>{p.name}</strong>
                     <small>{v.note || p.city || kindName(p.kind)}</small>
                   </span>
-                  <ChevronRight size={18} />
+                  <ChevronRight className="row-trail" size={18} />
                 </button>
               ) : null;
             })}
@@ -1887,32 +2174,26 @@ function CalendarView({
       <section className="section">
         <div className="section-heading">
           <h2>Svi posjeti</h2>
+          <span className="count">{data.visits.length}</span>
         </div>
-        <div className="visit-list">
-          {data.visits.map((v) => {
-            const p = data.places.find((x) => x.id === v.place_id);
-            return p ? (
-              <button
-                className="visit-row"
-                key={v.id}
-                onClick={() => openPlace(p)}
-              >
-                <span className="date-badge">
-                  <strong>{v.visited_at.slice(8, 10)}</strong>
-                  <small>
-                    {new Intl.DateTimeFormat("hr-HR", {
-                      month: "short",
-                    }).format(new Date(v.visited_at))}
-                  </small>
-                </span>
-                <span className="visit-info">
-                  <strong>{p.name}</strong>
-                  <small>{v.note || p.city || kindName(p.kind)}</small>
-                </span>
-              </button>
-            ) : null;
-          })}
-        </div>
+        {data.visits.length ? (
+          <div className="rows">
+            {data.visits.map((v) => {
+              const p = data.places.find((x) => x.id === v.place_id);
+              return p ? (
+                <button className="row" key={v.id} onClick={() => openPlace(p)}>
+                  <DateLead day={v.visited_at} />
+                  <span className="row-main">
+                    <strong>{p.name}</strong>
+                    <small>{v.note || p.city || kindName(p.kind)}</small>
+                  </span>
+                </button>
+              ) : null;
+            })}
+          </div>
+        ) : (
+          <Empty text="Još nema posjeta." />
+        )}
       </section>
     </>
   );
@@ -1988,53 +2269,64 @@ function Stats({
   return (
     <>
       <div className="page-title">
-        <span className="eyebrow">BROJKE S PRIČOM</span>
         <h1>
-          Naša statistika<span className="dot">.</span>
+          Statistika<span className="dot">.</span>
         </h1>
         <p>Malo brojki o svim vašim izlascima.</p>
       </div>
-      <div className="stat-grid">
+      <dl className="figures figures-4">
         <div>
-          <span>Ukupno posjeta</span>
-          <strong>{data.visits.length}</strong>
+          <dt>Ukupno posjeta</dt>
+          <dd>
+            <CountUp value={data.visits.length} />
+          </dd>
         </div>
         <div>
-          <span>Različitih mjesta</span>
-          <strong>{data.places.length}</strong>
+          <dt>Različitih mjesta</dt>
+          <dd>
+            <CountUp value={data.places.length} />
+          </dd>
         </div>
         <div>
-          <span>Gradova</span>
-          <strong>
-            {new Set(data.places.map((p) => p.city).filter(Boolean)).size}
-          </strong>
+          <dt>Gradova</dt>
+          <dd>
+            <CountUp
+              value={
+                new Set(data.places.map((p) => p.city).filter(Boolean)).size
+              }
+            />
+          </dd>
         </div>
         <div>
-          <span>Povrataka</span>
-          <strong>{repeated}</strong>
+          <dt>Povrataka</dt>
+          <dd>
+            <CountUp value={repeated} />
+          </dd>
         </div>
-      </div>
+      </dl>
       <section className="section">
         <div className="section-heading">
           <h2>Najbolje ocijenjena</h2>
         </div>
         {ranked.length ? (
-          <div className="row-list">
+          <div className="rows">
             {ranked.slice(0, 5).map((x, i) => (
               <button
-                className="rank-row"
+                className="row"
                 key={x.p.id}
                 onClick={() => openPlace(x.p)}
               >
-                <span className="rank">{String(i + 1).padStart(2, "0")}</span>
-                <span className="rank-text">
+                <span className="row-lead rank">{i + 1}</span>
+                <span className="row-main">
                   <strong>{x.p.name}</strong>
                   <small>
                     {x.ratings.length} ocjena kroz{" "}
                     {new Set(x.ratings.map((r) => r.visit_id)).size} posjeta
                   </small>
                 </span>
-                <b>{formatScore(placeAverage(x.ratings))}</b>
+                <span className="row-trail">
+                  {formatScore(placeAverage(x.ratings))}
+                </span>
               </button>
             ))}
           </div>
@@ -2047,23 +2339,23 @@ function Stats({
           <h2>Najveće neslaganje</h2>
         </div>
         {agreement.length ? (
-          <div className="row-list">
+          <div className="rows">
             {agreement.slice(0, 3).map((x) => (
               <button
-                className="rank-row"
+                className="row"
                 key={x.visit.id}
                 onClick={() => x.p && openPlace(x.p)}
               >
-                <span className="rank">
-                  <ArrowLeftRight size={16} />
+                <span className="row-lead rank">
+                  <ArrowLeftRight size={17} />
                 </span>
-                <span className="rank-text">
+                <span className="row-main">
                   <strong>{x.p?.name}</strong>
                   <small>
                     {prettyDate(x.visit.visited_at)} · razlika u ocjeni
                   </small>
                 </span>
-                <b>{formatScore(x.difference)}</b>
+                <span className="row-trail">{formatScore(x.difference)}</span>
               </button>
             ))}
           </div>
@@ -2076,26 +2368,7 @@ function Stats({
           <h2>Posjeti po mjesecima</h2>
         </div>
         {byMonth.length ? (
-          <div className="month-bars">
-            {byMonth.map(([key, value]) => (
-              <div key={key}>
-                <span>
-                  {new Intl.DateTimeFormat("hr-HR", {
-                    month: "short",
-                    year: "numeric",
-                  }).format(new Date(`${key}-01`))}
-                </span>
-                <div>
-                  <i
-                    style={{
-                      width: `${(value / Math.max(...byMonth.map((x) => x[1]))) * 100}%`,
-                    }}
-                  />
-                </div>
-                <b>{value}</b>
-              </div>
-            ))}
-          </div>
+          <Bars items={byMonth} />
         ) : (
           <Empty text="Prvi izlazak pokrenut će statistiku." />
         )}
@@ -2105,21 +2378,21 @@ function Stats({
           <h2>Najčešći povratci</h2>
         </div>
         {mostVisited.length ? (
-          <div className="row-list">
+          <div className="rows">
             {mostVisited.map((x) => (
               <button
-                className="rank-row"
+                className="row"
                 key={x.p.id}
                 onClick={() => openPlace(x.p)}
               >
-                <span className="rank">
-                  <RotateCcw size={16} />
+                <span className="row-lead rank">
+                  <RotateCcw size={17} />
                 </span>
-                <span className="rank-text">
+                <span className="row-main">
                   <strong>{x.p.name}</strong>
                   <small>{x.p.city || kindName(x.p.kind)}</small>
                 </span>
-                <b>{x.count}×</b>
+                <span className="row-trail">{x.count}×</span>
               </button>
             ))}
           </div>
@@ -2132,26 +2405,7 @@ function Stats({
           <h2>Nova mjesta po mjesecima</h2>
         </div>
         {newByMonth.length ? (
-          <div className="month-bars">
-            {newByMonth.map(([key, value]) => (
-              <div key={key}>
-                <span>
-                  {new Intl.DateTimeFormat("hr-HR", {
-                    month: "short",
-                    year: "numeric",
-                  }).format(new Date(`${key}-01`))}
-                </span>
-                <div>
-                  <i
-                    style={{
-                      width: `${(value / Math.max(...newByMonth.map((x) => x[1]))) * 100}%`,
-                    }}
-                  />
-                </div>
-                <b>{value}</b>
-              </div>
-            ))}
-          </div>
+          <Bars items={newByMonth} />
         ) : (
           <Empty text="Dodajte prvo mjesto." />
         )}
@@ -2161,12 +2415,13 @@ function Stats({
           <h2>Gradovi koje istražujete</h2>
         </div>
         {cities.length ? (
-          <div className="row-list">
+          <div className="rows">
             {cities.map(([city, count]) => (
-              <div className="category-winner" key={city}>
-                <span>Grad</span>
-                <strong>{city}</strong>
-                <b>{count}</b>
+              <div className="row" key={city}>
+                <span className="row-main">
+                  <strong>{city}</strong>
+                </span>
+                <span className="row-trail">{count}</span>
               </div>
             ))}
           </div>
@@ -2178,7 +2433,7 @@ function Stats({
         <div className="section-heading">
           <h2>Najbolje po kategoriji</h2>
         </div>
-        <div className="row-list">
+        <div className="rows">
           {categories.map(([key, label]) => {
             const top = [...rated]
               .filter((x) => ratingAverage(x.ratings, key) !== null)
@@ -2189,13 +2444,17 @@ function Stats({
               )[0];
             return top ? (
               <button
-                className="category-winner"
+                className="row"
                 key={key}
                 onClick={() => openPlace(top.p)}
               >
-                <span>{label}</span>
-                <strong>{top.p.name}</strong>
-                <b>{formatScore(ratingAverage(top.ratings, key))}</b>
+                <span className="row-main">
+                  <small>{label}</small>
+                  <strong>{top.p.name}</strong>
+                </span>
+                <span className="row-trail">
+                  {formatScore(ratingAverage(top.ratings, key))}
+                </span>
               </button>
             ) : null;
           })}
