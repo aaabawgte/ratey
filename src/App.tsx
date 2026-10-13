@@ -57,7 +57,6 @@ type LocationSuggestion = {
 };
 const center: [number, number] = [45.815, 15.982];
 const noPlaces: Place[] = [];
-const tabOrder: Tab[] = ["home", "map", "calendar", "stats"];
 // Zadnji pritisnuti gumb: polazište za morph prijelaze (View Transitions).
 let lastPressed: HTMLElement | null = null;
 let sheetOrigin: HTMLElement | null = null;
@@ -572,18 +571,13 @@ function App() {
       setEditingVisit(null);
       setRatingVisit(null);
     }, "close");
+  // Kartice se mijenjaju bez View Transition: sadržaj ulazi CSS animacijom.
   const goTab = (next: Tab) => {
-    document.documentElement.style.setProperty(
-      "--dir",
-      tabOrder.indexOf(next) < tabOrder.indexOf(tab) ? "-1" : "1",
-    );
-    morph(() => {
-      setPeekId(null);
-      setTab(next);
-      setSelected(null);
-      setScreen(null);
-      setRatingVisit(null);
-    });
+    setPeekId(null);
+    setTab(next);
+    setSelected(null);
+    setScreen(null);
+    setRatingVisit(null);
   };
   const saved = async (message = "Spremljeno!") => {
     if (navigator.onLine) await refresh();
