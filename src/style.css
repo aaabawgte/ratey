@@ -231,7 +231,7 @@ svg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 0;
   min-width: 46px;
   height: 48px;
   padding: 0 12px;
@@ -242,16 +242,19 @@ svg {
   letter-spacing: -0.01em;
 }
 .dock-item.active {
+  gap: 7px;
   background: var(--fill);
   color: var(--text);
 }
-.dock-item:not(.active) span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+.dock-item span {
+  max-width: 0;
   overflow: hidden;
-  clip-path: inset(50%);
   white-space: nowrap;
+  opacity: 0;
+}
+.dock-item.active span {
+  max-width: 84px;
+  opacity: 1;
 }
 .dock-add {
   flex: none;
@@ -1497,12 +1500,8 @@ svg.row-trail {
     width: 48px;
     padding: 0;
   }
-  .dock-item.active span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+  .dock-item span {
+    display: none;
   }
   .dock-add {
     margin: 4px 0;
@@ -1597,28 +1596,40 @@ svg.row-trail {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Ulazne animacije samo gdje nema View Transitions (inače ih rade morph prijelazi) */
+  /* Sadržaj stranice ulazi na živom DOM-u, bez snimke (snimka visokog
+     elementa na iOS-u na kraju prijelaza vidljivo "skoči") */
+  .app main > *,
+  .map-drawer {
+    animation: rise-in 420ms var(--ease) backwards;
+    animation-delay: var(--enter-delay, 0ms);
+  }
+  .app main > :nth-child(2) {
+    --enter-delay: 50ms;
+  }
+  .app main > :nth-child(3) {
+    --enter-delay: 100ms;
+  }
+  .app main > :nth-child(n + 4) {
+    --enter-delay: 140ms;
+  }
+  .app main > .map-screen {
+    animation-name: fade-in;
+  }
+  .auth-card {
+    animation: rise-in 480ms var(--ease) backwards;
+  }
+  .dock-item,
+  .dock-item span {
+    transition:
+      max-width 380ms var(--ease),
+      gap 380ms var(--ease),
+      opacity 220ms ease,
+      background-color 220ms ease,
+      color 220ms ease,
+      transform 160ms ease;
+  }
+  /* Ploča i pozadina: obična animacija samo gdje nema View Transitions */
   @supports not (view-transition-name: none) {
-    .app main > *,
-    .map-drawer {
-      animation: rise-in 420ms var(--ease) backwards;
-      animation-delay: var(--enter-delay, 0ms);
-    }
-    .app main > :nth-child(2) {
-      --enter-delay: 50ms;
-    }
-    .app main > :nth-child(3) {
-      --enter-delay: 100ms;
-    }
-    .app main > :nth-child(n + 4) {
-      --enter-delay: 140ms;
-    }
-    .app main > .map-screen {
-      animation-name: fade-in;
-    }
-    .auth-card {
-      animation: rise-in 480ms var(--ease) backwards;
-    }
     .modal-backdrop {
       animation: fade-in 200ms ease backwards;
     }
@@ -1669,27 +1680,7 @@ svg.row-trail {
     opacity: 0;
   }
 }
-@keyframes page-out {
-  to {
-    opacity: 0;
-    transform: translateX(calc(var(--dir, 1) * -28px));
-    filter: blur(6px);
-  }
-}
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateX(calc(var(--dir, 1) * 36px));
-    filter: blur(8px);
-  }
-}
 @media (prefers-reduced-motion: no-preference) {
-  main {
-    view-transition-name: page;
-  }
-  .dock-item.active {
-    view-transition-name: dock-pill;
-  }
   .dock-add,
   .sheet {
     view-transition-name: sheet;
@@ -1713,8 +1704,7 @@ svg.row-trail {
     view-transition-name: none;
   }
   /* Tema se otkriva krugom preko cijele stranice, bez zasebnih slojeva */
-  :root.theme-morph
-    :is(main, .dock-item, .dock-add, .sheet, .modal-backdrop, .toast) {
+  :root.theme-morph :is(.dock-add, .sheet, .modal-backdrop, .toast, .peek) {
     view-transition-name: none;
   }
   :root.theme-morph * {
@@ -1724,12 +1714,6 @@ svg.row-trail {
 ::view-transition-group(*) {
   animation-duration: 440ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-::view-transition-old(page) {
-  animation: page-out 200ms ease both;
-}
-::view-transition-new(page) {
-  animation: page-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 /* Ploča: oblik se pretapa iz retka ili gumba +, sadržaj se izmjenjuje unutra */
 ::view-transition-group(sheet) {
@@ -1754,9 +1738,6 @@ svg.row-trail {
 }
 ::view-transition-old(peek):only-child {
   animation: fade-out 160ms ease both;
-}
-::view-transition-group(dock-pill) {
-  animation-duration: 380ms;
 }
 .theme-morph::view-transition-old(root),
 .theme-morph::view-transition-new(root) {
