@@ -22,6 +22,8 @@ import {
   Navigation,
   Moon,
   Sun,
+  ArrowLeftRight,
+  RotateCcw,
 } from "lucide-react";
 import {
   api,
@@ -163,7 +165,6 @@ function MapCanvas({
       marker.className = "pin-marker";
       const symbol = document.createElement("span");
       symbol.className = `pin ${place.kind}`;
-      symbol.textContent = place.kind === "restaurant" ? "✦" : "●";
       const label = document.createElement("span");
       label.className = "pin-label";
       if (
@@ -198,7 +199,7 @@ function MapCanvas({
       L.marker(picked, {
         icon: L.divIcon({
           className: "pin-wrap",
-          html: '<span class="pin picked">✓</span>',
+          html: '<span class="pin picked"></span>',
           iconSize: [38, 44],
           iconAnchor: [19, 38],
         }),
@@ -308,7 +309,7 @@ function App() {
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute("content", dark ? "#101918" : "#f8f6f2");
+      ?.setAttribute("content", dark ? "#0e0e0d" : "#f5f4f1");
   }, [dark]);
   const toggleTheme = () => {
     const next = dark ? "light" : "dark";
@@ -546,13 +547,9 @@ function App() {
               <p>
                 Svaki izlazak, svaka ocjena i svaki pin — sve na jednom mjestu.
               </p>
-              <button
-                className="primary hero-button"
-                onClick={() => setScreen("place")}
-              >
+              <button className="primary" onClick={() => setScreen("place")}>
                 <Plus size={19} /> Dodaj novo mjesto
               </button>
-              <div className="hero-orbit">✳</div>
             </section>
             <section className="quick-stats">
               <div>
@@ -902,12 +899,9 @@ function Login({
     <div className="auth-page">
       <div className="auth-art">
         <div className="auth-art-inner">
-          ✦
-          <span>
-            Naša mala
-            <br />
-            velika mjesta.
-          </span>
+          Naša mala
+          <br />
+          velika mjesta.
         </div>
       </div>
       <div className="auth-content">
@@ -991,7 +985,6 @@ function Login({
 function Empty({ text }: { text: string }) {
   return (
     <div className="empty">
-      <span>✳</span>
       <p>{text}</p>
     </div>
   );
@@ -1020,8 +1013,10 @@ function PlaceCard({
         <strong>{place.name}</strong>
         <small>
           <MapPin size={13} />
-          {place.city || place.address || kindName(place.kind)} ·{" "}
-          {visits.length} posjet(a)
+          <span>
+            {place.city || place.address || kindName(place.kind)} ·{" "}
+            {visits.length} posjet(a)
+          </span>
         </small>
       </span>
       <span className="score-pill">
@@ -2024,23 +2019,25 @@ function Stats({
           <h2>Najbolje ocijenjena</h2>
         </div>
         {ranked.length ? (
-          ranked.slice(0, 5).map((x, i) => (
-            <button
-              className="rank-row"
-              key={x.p.id}
-              onClick={() => openPlace(x.p)}
-            >
-              <span className="rank">{String(i + 1).padStart(2, "0")}</span>
-              <span>
-                <strong>{x.p.name}</strong>
-                <small>
-                  {x.ratings.length} ocjena kroz{" "}
-                  {new Set(x.ratings.map((r) => r.visit_id)).size} posjeta
-                </small>
-              </span>
-              <b>{formatScore(placeAverage(x.ratings))}</b>
-            </button>
-          ))
+          <div className="row-list">
+            {ranked.slice(0, 5).map((x, i) => (
+              <button
+                className="rank-row"
+                key={x.p.id}
+                onClick={() => openPlace(x.p)}
+              >
+                <span className="rank">{String(i + 1).padStart(2, "0")}</span>
+                <span className="rank-text">
+                  <strong>{x.p.name}</strong>
+                  <small>
+                    {x.ratings.length} ocjena kroz{" "}
+                    {new Set(x.ratings.map((r) => r.visit_id)).size} posjeta
+                  </small>
+                </span>
+                <b>{formatScore(placeAverage(x.ratings))}</b>
+              </button>
+            ))}
+          </div>
         ) : (
           <Empty text="Ocijenite prvo mjesto pa će se ovdje pojaviti." />
         )}
@@ -2050,22 +2047,26 @@ function Stats({
           <h2>Najveće neslaganje</h2>
         </div>
         {agreement.length ? (
-          agreement.slice(0, 3).map((x) => (
-            <button
-              className="rank-row"
-              key={x.visit.id}
-              onClick={() => x.p && openPlace(x.p)}
-            >
-              <span className="rank">↔</span>
-              <span>
-                <strong>{x.p?.name}</strong>
-                <small>
-                  {prettyDate(x.visit.visited_at)} · razlika u ocjeni
-                </small>
-              </span>
-              <b>{formatScore(x.difference)}</b>
-            </button>
-          ))
+          <div className="row-list">
+            {agreement.slice(0, 3).map((x) => (
+              <button
+                className="rank-row"
+                key={x.visit.id}
+                onClick={() => x.p && openPlace(x.p)}
+              >
+                <span className="rank">
+                  <ArrowLeftRight size={16} />
+                </span>
+                <span className="rank-text">
+                  <strong>{x.p?.name}</strong>
+                  <small>
+                    {prettyDate(x.visit.visited_at)} · razlika u ocjeni
+                  </small>
+                </span>
+                <b>{formatScore(x.difference)}</b>
+              </button>
+            ))}
+          </div>
         ) : (
           <Empty text="Ovo postaje zanimljivo kad oboje ocijenite isti posjet." />
         )}
@@ -2104,20 +2105,24 @@ function Stats({
           <h2>Najčešći povratci</h2>
         </div>
         {mostVisited.length ? (
-          mostVisited.map((x) => (
-            <button
-              className="rank-row"
-              key={x.p.id}
-              onClick={() => openPlace(x.p)}
-            >
-              <span className="rank">↺</span>
-              <span>
-                <strong>{x.p.name}</strong>
-                <small>{x.p.city || kindName(x.p.kind)}</small>
-              </span>
-              <b>{x.count}×</b>
-            </button>
-          ))
+          <div className="row-list">
+            {mostVisited.map((x) => (
+              <button
+                className="rank-row"
+                key={x.p.id}
+                onClick={() => openPlace(x.p)}
+              >
+                <span className="rank">
+                  <RotateCcw size={16} />
+                </span>
+                <span className="rank-text">
+                  <strong>{x.p.name}</strong>
+                  <small>{x.p.city || kindName(x.p.kind)}</small>
+                </span>
+                <b>{x.count}×</b>
+              </button>
+            ))}
+          </div>
         ) : (
           <Empty text="Kad se vratite na omiljeno mjesto, vidjet će se ovdje." />
         )}
@@ -2156,13 +2161,15 @@ function Stats({
           <h2>Gradovi koje istražujete</h2>
         </div>
         {cities.length ? (
-          cities.map(([city, count]) => (
-            <div className="category-winner" key={city}>
-              <span>Grad</span>
-              <strong>{city}</strong>
-              <b>{count}</b>
-            </div>
-          ))
+          <div className="row-list">
+            {cities.map(([city, count]) => (
+              <div className="category-winner" key={city}>
+                <span>Grad</span>
+                <strong>{city}</strong>
+                <b>{count}</b>
+              </div>
+            ))}
+          </div>
         ) : (
           <Empty text="Gradovi će se pojaviti nakon prvog posjeta." />
         )}
@@ -2171,26 +2178,28 @@ function Stats({
         <div className="section-heading">
           <h2>Najbolje po kategoriji</h2>
         </div>
-        {categories.map(([key, label]) => {
-          const top = [...rated]
-            .filter((x) => ratingAverage(x.ratings, key) !== null)
-            .sort(
-              (a, b) =>
-                (ratingAverage(b.ratings, key) || 0) -
-                (ratingAverage(a.ratings, key) || 0),
-            )[0];
-          return top ? (
-            <button
-              className="category-winner"
-              key={key}
-              onClick={() => openPlace(top.p)}
-            >
-              <span>{label}</span>
-              <strong>{top.p.name}</strong>
-              <b>{formatScore(ratingAverage(top.ratings, key))}</b>
-            </button>
-          ) : null;
-        })}
+        <div className="row-list">
+          {categories.map(([key, label]) => {
+            const top = [...rated]
+              .filter((x) => ratingAverage(x.ratings, key) !== null)
+              .sort(
+                (a, b) =>
+                  (ratingAverage(b.ratings, key) || 0) -
+                  (ratingAverage(a.ratings, key) || 0),
+              )[0];
+            return top ? (
+              <button
+                className="category-winner"
+                key={key}
+                onClick={() => openPlace(top.p)}
+              >
+                <span>{label}</span>
+                <strong>{top.p.name}</strong>
+                <b>{formatScore(ratingAverage(top.ratings, key))}</b>
+              </button>
+            ) : null;
+          })}
+        </div>
       </section>
     </>
   );
