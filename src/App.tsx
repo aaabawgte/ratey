@@ -163,7 +163,9 @@ function MapCanvas({
       marker.className = "pin-marker";
       const symbol = document.createElement("span");
       symbol.className = `pin ${place.kind}`;
-      symbol.textContent = place.kind === "restaurant" ? "✦" : "●";
+      const glyph = document.createElement("span");
+      glyph.textContent = place.kind === "restaurant" ? "✦" : "●";
+      symbol.append(glyph);
       const label = document.createElement("span");
       label.className = "pin-label";
       if (
@@ -198,7 +200,7 @@ function MapCanvas({
       L.marker(picked, {
         icon: L.divIcon({
           className: "pin-wrap",
-          html: '<span class="pin picked">✓</span>',
+          html: '<span class="pin picked"><span>✓</span></span>',
           iconSize: [38, 44],
           iconAnchor: [19, 38],
         }),
@@ -552,7 +554,7 @@ function App() {
               >
                 <Plus size={19} /> Dodaj novo mjesto
               </button>
-              <div className="hero-orbit">✳</div>
+              <div className="hero-orbit">✳︎</div>
             </section>
             <section className="quick-stats">
               <div>
@@ -991,7 +993,7 @@ function Login({
 function Empty({ text }: { text: string }) {
   return (
     <div className="empty">
-      <span>✳</span>
+      <span>✳︎</span>
       <p>{text}</p>
     </div>
   );

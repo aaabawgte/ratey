@@ -7,6 +7,28 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Ratey" />
     <link rel="apple-touch-icon" href="%BASE_URL%icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap"
+    />
+    <script>
+      // Tema prije prvog crtanja, da nema bljeska svijetle pozadine u tamnom načinu.
+      (function () {
+        try {
+          var choice = localStorage.getItem("ratey_theme");
+          var dark =
+            choice === "dark" ||
+            (choice !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute("content", dark ? "#101918" : "#f8f6f2");
+        } catch (e) {}
+      })();
+    </script>
     <title>Ratey — naša mjesta</title>
   </head>
   <body>
