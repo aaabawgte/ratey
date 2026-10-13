@@ -14,8 +14,8 @@ export default defineConfig({
         short_name: "Ratey",
         description: "Naša karta restorana i kafića",
         lang: "hr",
-        theme_color: "#f8f6f2",
-        background_color: "#f8f6f2",
+        theme_color: "#f5f4f1",
+        background_color: "#f5f4f1",
         display: "standalone",
         start_url: ".",
         icons: [
@@ -31,7 +31,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: "index.html",
-        globPatterns: ["**/*.{js,css,html,svg,png}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         runtimeCaching: [],
       },
       devOptions: { enabled: true },
